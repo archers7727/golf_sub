@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [phoneNumber, setPhoneNumber] = useState('')
+  const [emailOrPhone, setEmailOrPhone] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -36,8 +36,8 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!phoneNumber || !password) {
-      toast.error('전화번호와 비밀번호를 입력해주세요')
+    if (!emailOrPhone || !password) {
+      toast.error('이메일/전화번호와 비밀번호를 입력해주세요')
       return
     }
 
@@ -45,7 +45,10 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient()
-      const email = phoneToEmail(phoneNumber)
+
+      // 이메일인지 전화번호인지 판단
+      const isEmail = emailOrPhone.includes('@')
+      const email = isEmail ? emailOrPhone : phoneToEmail(emailOrPhone)
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -60,21 +63,12 @@ export default function LoginPage() {
       }
     } catch (error) {
       console.error('Login error:', error)
-      toast.error('로그인 실패: 전화번호 또는 비밀번호를 확인해주세요')
+      toast.error('로그인 실패: 이메일/전화번호 또는 비밀번호를 확인해주세요')
     } finally {
       setLoading(false)
     }
   }
 
-  // 전화번호 입력 시 자동 포맷팅
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    const cleaned = value.replace(/[^0-9]/g, '')
-
-    if (cleaned.length <= 11) {
-      setPhoneNumber(cleaned)
-    }
-  }
 
   if (checkingAuth) {
     return (
@@ -89,25 +83,24 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">골프 인트라넷</CardTitle>
-          <CardDescription>전화번호와 비밀번호로 로그인하세요</CardDescription>
+          <CardDescription>이메일 또는 전화번호로 로그인하세요</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">전화번호</Label>
+              <Label htmlFor="emailOrPhone">이메일 / 전화번호</Label>
               <Input
-                id="phone"
-                type="tel"
-                placeholder="01012345678"
-                value={phoneNumber}
-                onChange={handlePhoneChange}
+                id="emailOrPhone"
+                type="text"
+                placeholder="example@email.com 또는 01012345678"
+                value={emailOrPhone}
+                onChange={(e) => setEmailOrPhone(e.target.value)}
                 disabled={loading}
-                autoComplete="tel"
-                inputMode="numeric"
+                autoComplete="username"
               />
-              {phoneNumber && (
+              {emailOrPhone && !emailOrPhone.includes('@') && /^\d+$/.test(emailOrPhone) && (
                 <p className="text-sm text-muted-foreground">
-                  {formatPhoneNumber(phoneNumber)}
+                  전화번호: {formatPhoneNumber(emailOrPhone)}
                 </p>
               )}
             </div>
