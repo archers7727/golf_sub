@@ -1,5 +1,6 @@
-import { redirect } from 'next/navigation'
+'use client'
 
 export default function Home() {
-  redirect('/dashboard/course-time')
+  // 미들웨어에서 리다이렉트 처리
+  return null
 }
