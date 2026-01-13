@@ -58,6 +58,15 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // 루트 경로 처리
+  if (request.nextUrl.pathname === '/') {
+    if (user) {
+      return NextResponse.redirect(new URL('/dashboard/course-time', request.url))
+    } else {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
+
   // 인증이 필요한 페이지
   if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
@@ -80,5 +89,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*'],
+  matcher: ['/', '/dashboard/:path*', '/dashboard', '/admin/:path*'],
 }
