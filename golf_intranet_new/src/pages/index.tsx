@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { createClient } from '@/lib/supabase/client'
-import { phoneToEmail, formatPhoneNumber } from '@/lib/utils/phone-to-email'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,7 +9,7 @@ import { toast } from 'sonner'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [phoneNumber, setPhoneNumber] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -36,8 +35,8 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!phoneNumber || !password) {
-      toast.error('전화번호와 비밀번호를 입력해주세요')
+    if (!username || !password) {
+      toast.error('아이디와 비밀번호를 입력해주세요')
       return
     }
 
@@ -45,7 +44,9 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient()
-      const email = phoneToEmail(phoneNumber)
+
+      // username을 이메일 형식으로 변환
+      const email = `${username}@golf.local`
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -60,21 +61,12 @@ export default function LoginPage() {
       }
     } catch (error) {
       console.error('Login error:', error)
-      toast.error('로그인 실패: 전화번호 또는 비밀번호를 확인해주세요')
+      toast.error('로그인 실패: 아이디 또는 비밀번호를 확인해주세요')
     } finally {
       setLoading(false)
     }
   }
 
-  // 전화번호 입력 시 자동 포맷팅
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    const cleaned = value.replace(/[^0-9]/g, '')
-
-    if (cleaned.length <= 11) {
-      setPhoneNumber(cleaned)
-    }
-  }
 
   if (checkingAuth) {
     return (
@@ -89,27 +81,21 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">골프 인트라넷</CardTitle>
-          <CardDescription>전화번호와 비밀번호로 로그인하세요</CardDescription>
+          <CardDescription>아이디와 비밀번호로 로그인하세요</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">전화번호</Label>
+              <Label htmlFor="username">아이디</Label>
               <Input
-                id="phone"
-                type="tel"
-                placeholder="01012345678"
-                value={phoneNumber}
-                onChange={handlePhoneChange}
+                id="username"
+                type="text"
+                placeholder="아이디를 입력하세요"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
-                autoComplete="tel"
-                inputMode="numeric"
+                autoComplete="username"
               />
-              {phoneNumber && (
-                <p className="text-sm text-muted-foreground">
-                  {formatPhoneNumber(phoneNumber)}
-                </p>
-              )}
             </div>
 
             <div className="space-y-2">
