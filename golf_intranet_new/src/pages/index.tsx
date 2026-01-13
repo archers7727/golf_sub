@@ -46,7 +46,7 @@ export default function LoginPage() {
       const supabase = createClient()
 
       // username을 이메일 형식으로 변환
-      const email = `${username}@golf.local`
+      const email = `${username}@internal.golf.local`
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,

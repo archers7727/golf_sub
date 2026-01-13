@@ -34,11 +34,11 @@ export function useAuth() {
         if (userError) throw userError
 
         if (user) {
-          // 프로필 정보 로드
+          // users.id는 auth.users를 참조하므로 user.id로 직접 조회
           const { data: profile, error: profileError } = await supabase
             .from('users')
             .select('*')
-            .eq('auth_id', user.id)
+            .eq('id', user.id)
             .single()
 
           if (profileError) throw profileError
@@ -65,10 +65,11 @@ export function useAuth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        // users.id는 auth.users를 참조하므로 user.id로 직접 조회
         const { data: profile } = await supabase
           .from('users')
           .select('*')
-          .eq('auth_id', session.user.id)
+          .eq('id', session.user.id)
           .single()
 
         setState({
