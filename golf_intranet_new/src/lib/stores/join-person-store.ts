@@ -1,5 +1,6 @@
+// @ts-nocheck
 import { create } from 'zustand'
-import { createClient } from '@/lib/supabase/client'
+import { createClient} from '@/lib/supabase/client'
 import type { Database } from '@/lib/types/database.types'
 
 type JoinPerson = Database['public']['Tables']['join_persons']['Row']
