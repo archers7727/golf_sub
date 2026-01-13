@@ -1,6 +1,31 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export default function RootPage() {
-  // 미들웨어가 이미 인증 확인했으므로 여기서는 단순히 리다이렉트
-  redirect('/dashboard/course-time')
+  const router = useRouter()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (user) {
+        router.replace('/dashboard/course-time')
+      } else {
+        router.replace('/login')
+      }
+    }
+
+    checkAuth()
+  }, [router])
+
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  )
 }
+

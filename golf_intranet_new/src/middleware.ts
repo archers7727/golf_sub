@@ -60,8 +60,8 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // 로그인하지 않은 사용자가 보호된 경로 접근 시
-  if (!user && (pathname === '/' || pathname.startsWith('/dashboard'))) {
+  // 로그인하지 않은 사용자가 dashboard 접근 시
+  if (!user && pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
