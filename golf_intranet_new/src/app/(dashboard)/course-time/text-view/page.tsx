@@ -1,0 +1,119 @@
+'use client'
+
+import { useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { useCourseTimeStore } from '@/lib/stores/course-time-store'
+import { Button } from '@/components/ui/button'
+import { RefreshCw, Plus } from 'lucide-react'
+import { format } from 'date-fns'
+import { ko } from 'date-fns/locale'
+import Link from 'next/link'
+
+export default function TextViewPage() {
+  const router = useRouter()
+  const { courseTimes, loading, fetchCourseTimes } = useCourseTimeStore()
+
+  useEffect(() => {
+    fetchCourseTimes({
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    })
+  }, [fetchCourseTimes])
+
+  // 날짜별 그룹핑
+  const groupedTimes = useMemo(() => {
+    const groups: Record<string, typeof courseTimes> = {}
+    courseTimes.forEach((time) => {
+      const dateKey = format(new Date(time.reserved_time), 'MM/dd(E)', { locale: ko })
+      if (!groups[dateKey]) groups[dateKey] = []
+      groups[dateKey].push(time)
+    })
+    return groups
+  }, [courseTimes])
+
+  return (
+    <div className="min-h-screen bg-white p-2 pb-24">
+      {/* 모바일 최적화된 헤더 */}
+      <div className="sticky top-0 bg-white border-b pb-2 mb-4 z-10">
+        <h1 className="text-xl font-bold">텍스트 뷰</h1>
+        <p className="text-sm text-muted-foreground">
+          {courseTimes.length}개의 타임
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="text-center text-muted-foreground py-8">로딩 중...</div>
+      ) : Object.entries(groupedTimes).length === 0 ? (
+        <div className="text-center text-muted-foreground py-8">
+          등록된 타임이 없습니다
+        </div>
+      ) : (
+        <>
+          {Object.entries(groupedTimes).map(([date, times]) => (
+            <div key={date} className="mb-6">
+              <h3 className="text-lg font-bold text-red-600 mb-2 sticky top-14 bg-white py-1">
+                {date}
+              </h3>
+              <div className="space-y-1">
+                {times.map((time) => (
+                  <Link
+                    key={time.id}
+                    href={`/dashboard/reservation/detail?id=${time.id}`}
+                    className="block text-sm p-2 hover:bg-slate-50 rounded transition-colors active:bg-slate-100"
+                  >
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-blue-600">
+                        {time.courses?.golf_club_name?.slice(0, 3) || '골프장'}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {time.courses?.course_name?.slice(0, 2) || '코스'}
+                      </span>
+                      <span className="font-medium">
+                        {format(new Date(time.reserved_time), 'HH:mm')}
+                      </span>
+                      <span className="text-blue-600">{time.reserved_name}</span>
+                      <span className="text-muted-foreground">
+                        {Math.floor(time.green_fee / 10000)}+{Math.floor(time.charge_fee / 10000)}
+                      </span>
+                      {time.requirements !== '조건없음' && (
+                        <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                          {time.requirements}
+                        </span>
+                      )}
+                      {time.join_num > 0 && (
+                        <span className="text-xs bg-green-100 text-green-800 px-1.5 py-0.5 rounded font-medium">
+                          조인 {time.join_num}/4
+                        </span>
+                      )}
+                    </div>
+                    {time.memo && (
+                      <div className="text-xs text-muted-foreground mt-1">{time.memo}</div>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* 플로팅 액션 버튼 */}
+      <div className="fixed right-4 bottom-4 flex flex-col gap-3">
+        <Button
+          size="lg"
+          className="rounded-full w-14 h-14 shadow-lg"
+          onClick={() => fetchCourseTimes()}
+        >
+          <RefreshCw className="h-5 w-5" />
+        </Button>
+        <Button
+          size="lg"
+          className="rounded-full w-14 h-14 shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600"
+          onClick={() => router.push('/dashboard/course-time/register')}
+        >
+          <Plus className="h-5 w-5" />
+        </Button>
+      </div>
+    </div>
+  )
+}
