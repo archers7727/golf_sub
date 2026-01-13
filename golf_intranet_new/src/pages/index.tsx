@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { createClient } from '@/lib/supabase/client'
-import { phoneToEmail, formatPhoneNumber } from '@/lib/utils/phone-to-email'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,7 +9,7 @@ import { toast } from 'sonner'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [emailOrPhone, setEmailOrPhone] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -36,8 +35,8 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!emailOrPhone || !password) {
-      toast.error('이메일/전화번호와 비밀번호를 입력해주세요')
+    if (!username || !password) {
+      toast.error('아이디와 비밀번호를 입력해주세요')
       return
     }
 
@@ -46,9 +45,8 @@ export default function LoginPage() {
     try {
       const supabase = createClient()
 
-      // 이메일인지 전화번호인지 판단
-      const isEmail = emailOrPhone.includes('@')
-      const email = isEmail ? emailOrPhone : phoneToEmail(emailOrPhone)
+      // username을 이메일 형식으로 변환
+      const email = `${username}@golf.local`
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -63,7 +61,7 @@ export default function LoginPage() {
       }
     } catch (error) {
       console.error('Login error:', error)
-      toast.error('로그인 실패: 이메일/전화번호 또는 비밀번호를 확인해주세요')
+      toast.error('로그인 실패: 아이디 또는 비밀번호를 확인해주세요')
     } finally {
       setLoading(false)
     }
@@ -83,26 +81,21 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">골프 인트라넷</CardTitle>
-          <CardDescription>이메일 또는 전화번호로 로그인하세요</CardDescription>
+          <CardDescription>아이디와 비밀번호로 로그인하세요</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="emailOrPhone">이메일 / 전화번호</Label>
+              <Label htmlFor="username">아이디</Label>
               <Input
-                id="emailOrPhone"
+                id="username"
                 type="text"
-                placeholder="example@email.com 또는 01012345678"
-                value={emailOrPhone}
-                onChange={(e) => setEmailOrPhone(e.target.value)}
+                placeholder="아이디를 입력하세요"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
                 autoComplete="username"
               />
-              {emailOrPhone && !emailOrPhone.includes('@') && /^\d+$/.test(emailOrPhone) && (
-                <p className="text-sm text-muted-foreground">
-                  전화번호: {formatPhoneNumber(emailOrPhone)}
-                </p>
-              )}
             </div>
 
             <div className="space-y-2">
