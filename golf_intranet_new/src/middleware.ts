@@ -60,35 +60,26 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // 로그인 페이지는 인증된 사용자는 접근 불가
-  if (pathname === '/login' && user) {
-    return NextResponse.redirect(new URL('/dashboard/course-time', request.url))
-  }
-
-  // 루트 경로 처리
-  if (pathname === '/') {
-    if (user) {
-      return NextResponse.redirect(new URL('/dashboard/course-time', request.url))
-    } else {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-  }
-
-  // 인증이 필요한 페이지
-  if (pathname.startsWith('/dashboard') && !user) {
+  // 로그인하지 않은 사용자가 보호된 경로 접근 시
+  if (!user && (pathname === '/' || pathname.startsWith('/dashboard'))) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
+  // 로그인한 사용자가 로그인 페이지 접근 시
+  if (user && pathname === '/login') {
+    return NextResponse.redirect(new URL('/dashboard/course-time', request.url))
+  }
+
   // Admin 페이지 접근 제어
-  if (request.nextUrl.pathname.startsWith('/dashboard/admin')) {
+  if (user && pathname.startsWith('/dashboard/admin')) {
     const { data: userProfile } = await supabase
       .from('users')
       .select('type')
-      .eq('id', user?.id)
+      .eq('id', user.id)
       .single()
 
     if (userProfile?.type !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/dashboard/course-time', request.url))
     }
   }
 
