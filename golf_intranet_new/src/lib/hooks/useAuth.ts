@@ -34,11 +34,18 @@ export function useAuth() {
         if (userError) throw userError
 
         if (user) {
+          // 이메일에서 username 추출 (예: admin@internal.golf.local -> admin)
+          const username = user.email?.split('@')[0]
+
+          if (!username) {
+            throw new Error('Username not found in email')
+          }
+
           // 프로필 정보 로드
           const { data: profile, error: profileError } = await supabase
             .from('users')
             .select('*')
-            .eq('auth_id', user.id)
+            .eq('username', username)
             .single()
 
           if (profileError) throw profileError
@@ -65,18 +72,30 @@ export function useAuth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('auth_id', session.user.id)
-          .single()
+        // 이메일에서 username 추출
+        const username = session.user.email?.split('@')[0]
 
-        setState({
-          user: session.user,
-          profile: profile || null,
-          loading: false,
-          error: null,
-        })
+        if (username) {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('username', username)
+            .single()
+
+          setState({
+            user: session.user,
+            profile: profile || null,
+            loading: false,
+            error: null,
+          })
+        } else {
+          setState({
+            user: session.user,
+            profile: null,
+            loading: false,
+            error: 'Username not found',
+          })
+        }
       } else {
         setState({ user: null, profile: null, loading: false, error: null })
       }
