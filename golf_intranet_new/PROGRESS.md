@@ -1,7 +1,7 @@
 # 작업 진행 상황
 
-> 📅 최종 업데이트: 2026-01-06
-> 🎯 완료 단계: 1-11단계 (핵심 기능 완성)
+> 📅 최종 업데이트: 2026-01-13
+> 🎯 완료 단계: 1-15단계 (전체 기능 완성) ✨
 
 ## ✅ 완료된 작업
 
@@ -103,47 +103,88 @@
   - 조인 삭제 기능
   - 타임 삭제/수정
 
+### 12단계: 블랙리스트 관리
+- ✅ 블랙리스트 Zustand 스토어 (`lib/stores/black-list-store.ts`)
+  - fetchBlackLists (검색 기능 포함)
+  - createBlackList
+  - deleteBlackList (Soft delete)
+- ✅ 블랙리스트 목록 페이지 (`black-list/page.tsx`)
+  - 테이블 뷰
+  - 검색 기능 (이름/전화번호)
+  - 추가 다이얼로그 (이름, 전화번호, 사유)
+  - 삭제 버튼
+  - 등록자 정보 표시
+
+### 13단계: 내 실적 조회
+- ✅ 실적 조회 페이지 (`my-performance/page.tsx`)
+  - 기간별 조회 (시작일/종료일)
+  - 통계 카드 3개 (총 판매액, 총 수수료, 판매 건수)
+  - 판매 내역 테이블
+    - 날짜, 골프장, 코스, 고객명, 그린피, 수수료, 상태
+  - 상태별 배지 (입금완료/입금확인중/환불완료 등)
+
+### 14단계: 사이트ID 현황
+- ✅ 사이트ID 현황 페이지 (`site-id-status/page.tsx`)
+  - 골프장별 그룹핑 카드
+  - 지역별 필터링
+  - 사이트ID 목록 (활성/비활성 표시)
+  - 예약 가능 수 표시
+  - 전체 통계 (총 골프장, 총 사이트ID, 활성 사이트ID)
+
+### 15단계: 관리자 기능
+- ✅ 유저 관리 (`admin/manage-users/page.tsx`)
+  - 유저 목록 테이블
+  - 유저 추가/수정/삭제
+  - 권한 변경 (manager ↔ admin)
+  - 수수료율 설정
+  - Supabase Auth 연동
+- ✅ 사이트ID 관리 (`admin/manage-site-ids/page.tsx`)
+  - 사이트ID 목록 테이블
+  - 골프장별 사이트ID 추가/수정/삭제
+  - 활성화/비활성화 토글
+  - 숨김 처리
+- ✅ 입금 관리 (`admin/deposit/page.tsx`)
+  - 탭 구조 (입금 대기, 환불 대기, 완료 내역)
+  - 입금 대기 목록 (입금확인전, 입금확인중)
+  - 환불 대기 목록 (환불확인중)
+  - 상태 변경 버튼 (승인/대기/거부)
+  - 통계 카드 (입금 대기, 환불 대기, 최근 완료)
+- ✅ 전체 실적 조회 (`admin/performance/page.tsx`)
+  - 기간별 조회
+  - 전체 통계 카드 (총 매니저, 총 판매액, 총 수수료, 총 건수)
+  - 매니저별 실적 테이블 (순위, 판매액, 수수료, 건수, 평균)
+  - 골프장별 실적 테이블
+
 ## 🔄 현재 상태
 
 ### 구현 완료 ✅
-- 프로젝트 기반 설정 100%
-- 데이터베이스 스키마 100%
-- 인증 시스템 100%
-- 코스 타임 관리 100%
-- 예약 관리 (조인) 100%
+- ✅ 프로젝트 기반 설정 100%
+- ✅ 데이터베이스 스키마 100%
+- ✅ 인증 시스템 100%
+- ✅ 코스 타임 관리 100%
+- ✅ 예약 관리 (조인) 100%
+- ✅ 블랙리스트 관리 100%
+- ✅ 내 실적 조회 100%
+- ✅ 사이트ID 현황 100%
+- ✅ 관리자 기능 100%
+  - ✅ 유저 관리
+  - ✅ 사이트ID 관리
+  - ✅ 입금 관리
+  - ✅ 전체 실적 조회
 
 ### 테스트 필요 ⚠️
 - Supabase 클라우드 연결 필요
 - 실제 데이터로 CRUD 테스트 필요
 - 사용자 생성 및 권한 테스트 필요
+- 모든 페이지 통합 테스트 필요
 
-## 📋 남은 작업 (12-15단계)
+## 📋 선택적 추가 작업 (16단계)
 
-### 12단계: 블랙리스트 관리
-- [ ] 블랙리스트 목록 페이지
-- [ ] 블랙리스트 추가 폼
-- [ ] 삭제 기능
-
-### 13단계: 내 실적 조회
-- [ ] 기간별 실적 조회
-- [ ] 판매 내역 테이블
-- [ ] 통계 카드 (총 판매액, 수수료, 건수)
-
-### 14단계: 사이트ID 현황
-- [ ] 골프장별 사이트ID 목록
-- [ ] 사용 현황 표시
-- [ ] 날짜별 예약 가능 여부
-
-### 15단계: 관리자 기능
-- [ ] 유저 관리 (CRUD)
-- [ ] 사이트ID 관리
-- [ ] 입금 관리 (승인/환불)
-- [ ] 전체 실적 조회
-
-### 16단계: Edge Functions (선택)
+### 16단계: Edge Functions (선택 사항)
 - [ ] Line Notify 알림
 - [ ] Telegram Bot 알림
 - [ ] 데이터베이스 트리거 연동
+- [ ] 자동 알림 시스템
 
 ## 🎯 다음 작업 시 체크리스트
 
@@ -177,17 +218,27 @@ pnpm dev
 - `.env.local` - 환경 변수
 - `src/middleware.ts` - 인증 미들웨어
 
-### 페이지
+### 페이지 (일반 사용자)
 - `src/app/(auth)/login/page.tsx` - 로그인
 - `src/app/(dashboard)/course-time/page.tsx` - 코스 타임 목록
 - `src/app/(dashboard)/course-time/register/page.tsx` - 타임 등록/수정
 - `src/app/(dashboard)/course-time/text-view/page.tsx` - 텍스트 뷰
 - `src/app/(dashboard)/reservation/page.tsx` - 예약 목록
 - `src/app/(dashboard)/reservation/detail/page.tsx` - 예약 상세
+- `src/app/(dashboard)/black-list/page.tsx` - 블랙리스트 관리
+- `src/app/(dashboard)/my-performance/page.tsx` - 내 실적 조회
+- `src/app/(dashboard)/site-id-status/page.tsx` - 사이트ID 현황
 
-### 상태 관리
-- `src/lib/stores/course-time-store.ts`
-- `src/lib/stores/join-person-store.ts`
+### 페이지 (관리자)
+- `src/app/(dashboard)/admin/manage-users/page.tsx` - 유저 관리
+- `src/app/(dashboard)/admin/manage-site-ids/page.tsx` - 사이트ID 관리
+- `src/app/(dashboard)/admin/deposit/page.tsx` - 입금 관리
+- `src/app/(dashboard)/admin/performance/page.tsx` - 전체 실적 조회
+
+### 상태 관리 (Zustand)
+- `src/lib/stores/course-time-store.ts` - 코스 타임 스토어
+- `src/lib/stores/join-person-store.ts` - 조인 스토어
+- `src/lib/stores/black-list-store.ts` - 블랙리스트 스토어
 
 ### 컴포넌트
 - `src/components/layout/sidebar.tsx`
