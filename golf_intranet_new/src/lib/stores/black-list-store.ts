@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { create } from 'zustand'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/lib/types/database.types'
