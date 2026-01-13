@@ -58,8 +58,15 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  const pathname = request.nextUrl.pathname
+
+  // 로그인 페이지는 인증된 사용자는 접근 불가
+  if (pathname === '/login' && user) {
+    return NextResponse.redirect(new URL('/dashboard/course-time', request.url))
+  }
+
   // 루트 경로 처리
-  if (request.nextUrl.pathname === '/') {
+  if (pathname === '/') {
     if (user) {
       return NextResponse.redirect(new URL('/dashboard/course-time', request.url))
     } else {
@@ -68,7 +75,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // 인증이 필요한 페이지
-  if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
+  if (pathname.startsWith('/dashboard') && !user) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -89,5 +96,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/dashboard/:path*', '/dashboard', '/admin/:path*'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
