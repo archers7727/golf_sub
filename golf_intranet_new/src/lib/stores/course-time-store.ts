@@ -51,25 +51,11 @@ export const useCourseTimeStore = create<CourseTimeState>((set, get) => ({
     const supabase = createClient()
 
     try {
+      console.log('Fetching course times with filters:', filters)
+
       let query = supabase
         .from('course_times')
-        .select(`
-          *,
-          courses (
-            id,
-            golf_club_name,
-            course_name
-          ),
-          site_ids (
-            id,
-            site_id,
-            name
-          ),
-          users:author_id (
-            id,
-            name
-          )
-        `)
+        .select('*')
         .order('reserved_time', { ascending: true })
 
       // 필터 적용
@@ -85,10 +71,13 @@ export const useCourseTimeStore = create<CourseTimeState>((set, get) => ({
 
       const { data, error } = await query
 
+      console.log('Query result:', { data, error })
+
       if (error) throw error
 
       set({ courseTimes: (data || []) as CourseTimeWithRelations[], loading: false })
     } catch (error: any) {
+      console.error('Error fetching course times:', error)
       set({ error: error.message, loading: false })
     }
   },

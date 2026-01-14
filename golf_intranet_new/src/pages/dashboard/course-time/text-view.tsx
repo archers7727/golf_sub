@@ -2,12 +2,18 @@ import { useEffect, useMemo } from 'react'
 import { useRouter } from 'next/router'
 import { useCourseTimeStore } from '@/lib/stores/course-time-store'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Plus } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { RefreshCw, Plus, Clock, DollarSign, FastForward } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import Link from 'next/link'
 import { withAuth } from '@/lib/hooks/useRequireAuth'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
+
+// Flag 비트마스크
+const FLAG_URGENT = 1  // 임박
+const FLAG_COST = 2    // 원가
+const FLAG_JOIN = 4    // 조인
 
 function TextViewPage({ profile }: any) {
   const router = useRouter()
@@ -63,6 +69,22 @@ function TextViewPage({ profile }: any) {
                       className="block text-sm p-2 hover:bg-slate-50 rounded transition-colors active:bg-slate-100"
                     >
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* Flag badges */}
+                        {time.flag & FLAG_URGENT && (
+                          <Badge variant="default" className="px-1 py-0 text-xs">
+                            <Clock className="h-3 w-3" />
+                          </Badge>
+                        )}
+                        {time.flag & FLAG_COST && (
+                          <Badge variant="default" className="px-1 py-0 text-xs">
+                            <DollarSign className="h-3 w-3" />
+                          </Badge>
+                        )}
+                        {time.flag & FLAG_JOIN && (
+                          <Badge variant="default" className="px-1 py-0 text-xs">
+                            <FastForward className="h-3 w-3" />
+                          </Badge>
+                        )}
                         <span className="font-bold text-blue-600">
                           {time.courses?.golf_club_name?.slice(0, 3) || '골프장'}
                         </span>
