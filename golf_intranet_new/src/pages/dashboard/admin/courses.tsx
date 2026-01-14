@@ -164,19 +164,34 @@ function ManageCoursesPage({ profile }: any) {
     setSubmitting(true)
 
     try {
+      console.log('[courses.tsx] Starting course submission:', {
+        region: formData.region,
+        golf_club_name: formData.golf_club_name.trim(),
+        course_name: formData.course_name.trim(),
+        isEditing: !!editingCourse,
+      })
+
       // 1. 골프장(golf_clubs)이 존재하는지 확인
-      const { data: existingClub } = await supabase
+      console.log('[courses.tsx] Checking for existing golf club...')
+      const { data: existingClub, error: clubCheckError } = await supabase
         .from('golf_clubs')
         .select('id')
         .eq('name', formData.golf_club_name.trim())
         .eq('region', formData.region)
         .is('deleted_at', null)
-        .single()
+        .maybeSingle()
+
+      if (clubCheckError) {
+        console.error('[courses.tsx] Error checking golf club:', clubCheckError)
+        throw clubCheckError
+      }
 
       let clubId = existingClub?.id
+      console.log('[courses.tsx] Existing club found:', existingClub)
 
       // 2. 골프장이 없으면 새로 생성
       if (!clubId) {
+        console.log('[courses.tsx] Creating new golf club...')
         const { data: newClub, error: clubError } = await supabase
           .from('golf_clubs')
           .insert({
@@ -188,12 +203,22 @@ function ManageCoursesPage({ profile }: any) {
           .select('id')
           .single()
 
-        if (clubError) throw clubError
+        if (clubError) {
+          console.error('[courses.tsx] Error creating golf club:', clubError)
+          throw clubError
+        }
+
+        if (!newClub || !newClub.id) {
+          throw new Error('골프장 생성에 실패했습니다')
+        }
+
         clubId = newClub.id
+        console.log('[courses.tsx] New club created with ID:', clubId)
       }
 
       // 3. 코스 추가/수정
       if (editingCourse) {
+        console.log('[courses.tsx] Updating course...')
         // 수정 시 기존 골프장 이름이 변경되었는지 확인
         const { error } = await supabase
           .from('courses')
@@ -206,9 +231,31 @@ function ManageCoursesPage({ profile }: any) {
           })
           .eq('id', editingCourse.id)
 
-        if (error) throw error
+        if (error) {
+          console.error('[courses.tsx] Error updating course:', error)
+          throw error
+        }
+        console.log('[courses.tsx] Course updated successfully')
         toast.success('골프장이 수정되었습니다')
       } else {
+        // 중복 체크
+        console.log('[courses.tsx] Checking for duplicate course...')
+        const { data: duplicateCourse } = await supabase
+          .from('courses')
+          .select('id')
+          .eq('golf_club_name', formData.golf_club_name.trim())
+          .eq('course_name', formData.course_name.trim())
+          .eq('region', formData.region)
+          .is('deleted_at', null)
+          .maybeSingle()
+
+        if (duplicateCourse) {
+          console.warn('[courses.tsx] Duplicate course found:', duplicateCourse)
+          toast.error('이미 존재하는 골프장 코스입니다')
+          return
+        }
+
+        console.log('[courses.tsx] Inserting new course...')
         const { error } = await supabase.from('courses').insert({
           club_id: clubId,
           region: formData.region,
@@ -216,16 +263,23 @@ function ManageCoursesPage({ profile }: any) {
           course_name: formData.course_name.trim(),
         })
 
-        if (error) throw error
+        if (error) {
+          console.error('[courses.tsx] Error inserting course:', error)
+          throw error
+        }
+        console.log('[courses.tsx] Course inserted successfully')
         toast.success('골프장이 추가되었습니다')
       }
 
+      console.log('[courses.tsx] Closing dialog and refreshing courses...')
       setDialogOpen(false)
-      fetchCourses()
+      await fetchCourses()
+      console.log('[courses.tsx] Course submission completed')
     } catch (error: any) {
-      console.error('Error saving course:', error)
-      toast.error(error.message || '저장에 실패했습니다')
+      console.error('[courses.tsx] Error saving course:', error)
+      toast.error(error.message || '저장에 실패했습니다. 다시 시도해주세요.')
     } finally {
+      console.log('[courses.tsx] Resetting submitting state')
       setSubmitting(false)
     }
   }
