@@ -163,23 +163,51 @@ function ManageCoursesPage({ profile }: any) {
 
     setSubmitting(true)
 
+    // 타임아웃 설정 (10초)
+    const timeoutId = setTimeout(() => {
+      console.error('[courses.tsx] Request timeout after 10 seconds')
+      toast.error('요청 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.')
+      setSubmitting(false)
+    }, 10000)
+
     try {
       console.log('[courses.tsx] Starting course submission:', {
         region: formData.region,
         golf_club_name: formData.golf_club_name.trim(),
         course_name: formData.course_name.trim(),
         isEditing: !!editingCourse,
+        userProfile: profile,
       })
+
+      // 0. 사용자 권한 확인
+      if (profile?.type !== 'admin') {
+        console.error('[courses.tsx] User is not admin:', profile)
+        toast.error('관리자 권한이 필요합니다')
+        clearTimeout(timeoutId)
+        setSubmitting(false)
+        return
+      }
+      console.log('[courses.tsx] User admin check passed')
 
       // 1. 골프장(golf_clubs)이 존재하는지 확인
       console.log('[courses.tsx] Checking for existing golf club...')
-      const { data: existingClub, error: clubCheckError } = await supabase
+
+      const clubCheckPromise = supabase
         .from('golf_clubs')
         .select('id')
         .eq('name', formData.golf_club_name.trim())
         .eq('region', formData.region)
         .is('deleted_at', null)
         .maybeSingle()
+
+      const clubCheckResult = await Promise.race([
+        clubCheckPromise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Golf club check timeout')), 8000)
+        )
+      ])
+
+      const { data: existingClub, error: clubCheckError } = clubCheckResult as any
 
       if (clubCheckError) {
         console.error('[courses.tsx] Error checking golf club:', clubCheckError)
@@ -192,7 +220,8 @@ function ManageCoursesPage({ profile }: any) {
       // 2. 골프장이 없으면 새로 생성
       if (!clubId) {
         console.log('[courses.tsx] Creating new golf club...')
-        const { data: newClub, error: clubError } = await supabase
+
+        const createClubPromise = supabase
           .from('golf_clubs')
           .insert({
             region: formData.region,
@@ -202,6 +231,15 @@ function ManageCoursesPage({ profile }: any) {
           })
           .select('id')
           .single()
+
+        const createClubResult = await Promise.race([
+          createClubPromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Golf club creation timeout')), 8000)
+          )
+        ])
+
+        const { data: newClub, error: clubError } = createClubResult as any
 
         if (clubError) {
           console.error('[courses.tsx] Error creating golf club:', clubError)
@@ -219,8 +257,8 @@ function ManageCoursesPage({ profile }: any) {
       // 3. 코스 추가/수정
       if (editingCourse) {
         console.log('[courses.tsx] Updating course...')
-        // 수정 시 기존 골프장 이름이 변경되었는지 확인
-        const { error } = await supabase
+
+        const updateCoursePromise = supabase
           .from('courses')
           .update({
             club_id: clubId,
@@ -231,6 +269,15 @@ function ManageCoursesPage({ profile }: any) {
           })
           .eq('id', editingCourse.id)
 
+        const updateCourseResult = await Promise.race([
+          updateCoursePromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Course update timeout')), 8000)
+          )
+        ])
+
+        const { error } = updateCourseResult as any
+
         if (error) {
           console.error('[courses.tsx] Error updating course:', error)
           throw error
@@ -240,7 +287,8 @@ function ManageCoursesPage({ profile }: any) {
       } else {
         // 중복 체크
         console.log('[courses.tsx] Checking for duplicate course...')
-        const { data: duplicateCourse } = await supabase
+
+        const duplicateCheckPromise = supabase
           .from('courses')
           .select('id')
           .eq('golf_club_name', formData.golf_club_name.trim())
@@ -249,19 +297,39 @@ function ManageCoursesPage({ profile }: any) {
           .is('deleted_at', null)
           .maybeSingle()
 
+        const duplicateCheckResult = await Promise.race([
+          duplicateCheckPromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Duplicate check timeout')), 8000)
+          )
+        ])
+
+        const { data: duplicateCourse } = duplicateCheckResult as any
+
         if (duplicateCourse) {
           console.warn('[courses.tsx] Duplicate course found:', duplicateCourse)
           toast.error('이미 존재하는 골프장 코스입니다')
+          clearTimeout(timeoutId)
           return
         }
 
         console.log('[courses.tsx] Inserting new course...')
-        const { error } = await supabase.from('courses').insert({
+
+        const insertCoursePromise = supabase.from('courses').insert({
           club_id: clubId,
           region: formData.region,
           golf_club_name: formData.golf_club_name.trim(),
           course_name: formData.course_name.trim(),
         })
+
+        const insertCourseResult = await Promise.race([
+          insertCoursePromise,
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Course insertion timeout')), 8000)
+          )
+        ])
+
+        const { error } = insertCourseResult as any
 
         if (error) {
           console.error('[courses.tsx] Error inserting course:', error)
@@ -271,13 +339,31 @@ function ManageCoursesPage({ profile }: any) {
         toast.success('골프장이 추가되었습니다')
       }
 
+      clearTimeout(timeoutId)
       console.log('[courses.tsx] Closing dialog and refreshing courses...')
       setDialogOpen(false)
       await fetchCourses()
       console.log('[courses.tsx] Course submission completed')
     } catch (error: any) {
+      clearTimeout(timeoutId)
       console.error('[courses.tsx] Error saving course:', error)
-      toast.error(error.message || '저장에 실패했습니다. 다시 시도해주세요.')
+
+      // 에러 메시지 상세화
+      let errorMessage = '저장에 실패했습니다. 다시 시도해주세요.'
+
+      if (error.message) {
+        if (error.message.includes('timeout')) {
+          errorMessage = '요청 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.'
+        } else if (error.message.includes('permission') || error.message.includes('policy')) {
+          errorMessage = '권한이 없습니다. 관리자 계정으로 로그인했는지 확인해주세요.'
+        } else if (error.message.includes('duplicate') || error.message.includes('unique')) {
+          errorMessage = '이미 존재하는 데이터입니다.'
+        } else {
+          errorMessage = `오류: ${error.message}`
+        }
+      }
+
+      toast.error(errorMessage)
     } finally {
       console.log('[courses.tsx] Resetting submitting state')
       setSubmitting(false)
