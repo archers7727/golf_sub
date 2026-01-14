@@ -59,7 +59,7 @@ export default async function handler(
     console.log('[API] Creating course:', formData)
 
     // 1. 골프장 존재 확인
-    const { data: existingClub, error: clubCheckError } = await supabase
+    const { data: existingClubData, error: clubCheckError } = await supabase
       .from('golf_clubs')
       .select('id')
       .eq('name', formData.golf_club_name.trim())
@@ -72,12 +72,13 @@ export default async function handler(
       return res.status(500).json({ error: '골프장 확인 중 오류가 발생했습니다', details: clubCheckError.message })
     }
 
+    const existingClub = existingClubData as { id: string } | null
     let clubId = existingClub?.id
 
     // 2. 골프장이 없으면 생성
     if (!clubId) {
       console.log('[API] Creating new golf club...')
-      const { data: newClub, error: clubError } = await supabase
+      const { data: newClubData, error: clubError } = await supabase
         .from('golf_clubs')
         .insert({
           region: formData.region,
@@ -88,17 +89,18 @@ export default async function handler(
         .select('id')
         .single()
 
-      if (clubError || !newClub) {
+      if (clubError || !newClubData) {
         console.error('[API] Club creation error:', clubError)
         return res.status(500).json({ error: '골프장 생성 중 오류가 발생했습니다', details: clubError?.message })
       }
 
+      const newClub = newClubData as { id: string }
       clubId = newClub.id
       console.log('[API] New club created:', clubId)
     }
 
     // 3. 중복 체크
-    const { data: duplicateCourse } = await supabase
+    const { data: duplicateCourseData } = await supabase
       .from('courses')
       .select('id')
       .eq('golf_club_name', formData.golf_club_name.trim())
@@ -106,6 +108,8 @@ export default async function handler(
       .eq('region', formData.region)
       .is('deleted_at', null)
       .maybeSingle()
+
+    const duplicateCourse = duplicateCourseData as { id: string } | null
 
     if (duplicateCourse) {
       console.log('[API] Duplicate course found')
