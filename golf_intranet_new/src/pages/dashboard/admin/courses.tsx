@@ -189,155 +189,42 @@ function ManageCoursesPage({ profile }: any) {
       }
       console.log('[courses.tsx] User admin check passed')
 
-      // 1. 골프장(golf_clubs)이 존재하는지 확인
-      console.log('[courses.tsx] Checking for existing golf club...')
+      // 0-1. Supabase 세션 확인
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('[courses.tsx] Current session:', {
+        userId: session?.user?.id,
+        hasSession: !!session,
+        userMetadata: session?.user?.user_metadata,
+      })
 
-      const clubCheckPromise = supabase
-        .from('golf_clubs')
-        .select('id')
-        .eq('name', formData.golf_club_name.trim())
-        .eq('region', formData.region)
-        .is('deleted_at', null)
-        .maybeSingle()
-
-      const clubCheckResult = await Promise.race([
-        clubCheckPromise,
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Golf club check timeout')), 8000)
-        )
-      ])
-
-      const { data: existingClub, error: clubCheckError } = clubCheckResult as any
-
-      if (clubCheckError) {
-        console.error('[courses.tsx] Error checking golf club:', clubCheckError)
-        throw clubCheckError
+      if (!session) {
+        console.error('[courses.tsx] No active session')
+        toast.error('세션이 만료되었습니다. 다시 로그인해주세요.')
+        clearTimeout(timeoutId)
+        setSubmitting(false)
+        return
       }
 
-      let clubId = existingClub?.id
-      console.log('[courses.tsx] Existing club found:', existingClub)
+      // API 라우트를 통해 서버 사이드에서 처리 (RLS 우회)
+      console.log('[courses.tsx] Calling API route...')
 
-      // 2. 골프장이 없으면 새로 생성
-      if (!clubId) {
-        console.log('[courses.tsx] Creating new golf club...')
+      const apiResponse = await fetch('/api/admin/courses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
 
-        const createClubPromise = supabase
-          .from('golf_clubs')
-          .insert({
-            region: formData.region,
-            name: formData.golf_club_name.trim(),
-            cancel_deadline_date: 1,
-            cancel_deadline_hour: 18,
-          })
-          .select('id')
-          .single()
+      const apiData = await apiResponse.json()
 
-        const createClubResult = await Promise.race([
-          createClubPromise,
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Golf club creation timeout')), 8000)
-          )
-        ])
-
-        const { data: newClub, error: clubError } = createClubResult as any
-
-        if (clubError) {
-          console.error('[courses.tsx] Error creating golf club:', clubError)
-          throw clubError
-        }
-
-        if (!newClub || !newClub.id) {
-          throw new Error('골프장 생성에 실패했습니다')
-        }
-
-        clubId = newClub.id
-        console.log('[courses.tsx] New club created with ID:', clubId)
+      if (!apiResponse.ok) {
+        console.error('[courses.tsx] API error:', apiData)
+        throw new Error(apiData.error || apiData.details || '서버 오류가 발생했습니다')
       }
 
-      // 3. 코스 추가/수정
-      if (editingCourse) {
-        console.log('[courses.tsx] Updating course...')
-
-        const updateCoursePromise = supabase
-          .from('courses')
-          .update({
-            club_id: clubId,
-            region: formData.region,
-            golf_club_name: formData.golf_club_name.trim(),
-            course_name: formData.course_name.trim(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', editingCourse.id)
-
-        const updateCourseResult = await Promise.race([
-          updateCoursePromise,
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Course update timeout')), 8000)
-          )
-        ])
-
-        const { error } = updateCourseResult as any
-
-        if (error) {
-          console.error('[courses.tsx] Error updating course:', error)
-          throw error
-        }
-        console.log('[courses.tsx] Course updated successfully')
-        toast.success('골프장이 수정되었습니다')
-      } else {
-        // 중복 체크
-        console.log('[courses.tsx] Checking for duplicate course...')
-
-        const duplicateCheckPromise = supabase
-          .from('courses')
-          .select('id')
-          .eq('golf_club_name', formData.golf_club_name.trim())
-          .eq('course_name', formData.course_name.trim())
-          .eq('region', formData.region)
-          .is('deleted_at', null)
-          .maybeSingle()
-
-        const duplicateCheckResult = await Promise.race([
-          duplicateCheckPromise,
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Duplicate check timeout')), 8000)
-          )
-        ])
-
-        const { data: duplicateCourse } = duplicateCheckResult as any
-
-        if (duplicateCourse) {
-          console.warn('[courses.tsx] Duplicate course found:', duplicateCourse)
-          toast.error('이미 존재하는 골프장 코스입니다')
-          clearTimeout(timeoutId)
-          return
-        }
-
-        console.log('[courses.tsx] Inserting new course...')
-
-        const insertCoursePromise = supabase.from('courses').insert({
-          club_id: clubId,
-          region: formData.region,
-          golf_club_name: formData.golf_club_name.trim(),
-          course_name: formData.course_name.trim(),
-        })
-
-        const insertCourseResult = await Promise.race([
-          insertCoursePromise,
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Course insertion timeout')), 8000)
-          )
-        ])
-
-        const { error } = insertCourseResult as any
-
-        if (error) {
-          console.error('[courses.tsx] Error inserting course:', error)
-          throw error
-        }
-        console.log('[courses.tsx] Course inserted successfully')
-        toast.success('골프장이 추가되었습니다')
-      }
+      console.log('[courses.tsx] API response:', apiData)
+      toast.success(apiData.message || '골프장이 추가되었습니다')
 
       clearTimeout(timeoutId)
       console.log('[courses.tsx] Closing dialog and refreshing courses...')
