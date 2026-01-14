@@ -78,10 +78,11 @@ export default async function handler(
     // 2. 골프장이 없으면 생성
     if (!clubId) {
       console.log('[API] Creating new golf club...')
+      // @ts-ignore - Supabase 타입 추론 문제로 인한 우회
       const { data: newClubData, error: clubError } = await supabase
         .from('golf_clubs')
         .insert({
-          region: formData.region as any,
+          region: formData.region,
           name: formData.golf_club_name.trim(),
           cancel_deadline_date: 1,
           cancel_deadline_hour: 18,
@@ -118,9 +119,10 @@ export default async function handler(
 
     // 4. 코스 추가
     console.log('[API] Inserting course...')
+    // @ts-ignore - Supabase 타입 추론 문제로 인한 우회
     const { error: courseError } = await supabase.from('courses').insert({
       club_id: clubId,
-      region: formData.region as any,
+      region: formData.region,
       golf_club_name: formData.golf_club_name.trim(),
       course_name: formData.course_name.trim(),
     })
