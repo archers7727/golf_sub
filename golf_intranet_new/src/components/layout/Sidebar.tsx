@@ -19,6 +19,7 @@ import {
   FileText,
   DollarSign,
   Menu,
+  Flag,
 } from 'lucide-react'
 import type { Database } from '@/lib/supabase/types'
 
@@ -36,6 +37,7 @@ const navigation = [
 
 const adminNavigation = [
   { name: '유저 관리', href: '/dashboard/admin/users', icon: Users },
+  { name: '골프장 관리', href: '/dashboard/admin/courses', icon: Flag },
   { name: '사이트ID 관리', href: '/dashboard/admin/site-ids', icon: Settings },
   { name: '입금 관리', href: '/dashboard/admin/deposit', icon: DollarSign },
   { name: '전체 실적', href: '/dashboard/admin/performance', icon: BarChart3 },
