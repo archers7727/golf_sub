@@ -38,6 +38,11 @@ function RegisterCourseTimePage({ user, profile }: any) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
+  // Debug logging
+  useEffect(() => {
+    console.log('RegisterCourseTimePage mounted', { user, profile })
+  }, [user, profile])
+
   // Form state
   const [region, setRegion] = useState('')
   const [golfClubId, setGolfClubId] = useState('')
@@ -251,7 +256,7 @@ function RegisterCourseTimePage({ user, profile }: any) {
           </CardHeader>
           <CardContent>
             <div className="bg-gray-100 p-3 rounded-md mb-6">
-              <p className="text-sm font-medium">{profile.name}</p>
+              <p className="text-sm font-medium">{profile?.name || '사용자'}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">

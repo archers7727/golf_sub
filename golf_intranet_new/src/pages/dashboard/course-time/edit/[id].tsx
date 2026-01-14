@@ -328,7 +328,7 @@ function EditCourseTimePage({ user, profile }: any) {
           </CardHeader>
           <CardContent>
             <div className="bg-gray-100 p-3 rounded-md mb-6">
-              <p className="text-sm font-medium">{profile.name}</p>
+              <p className="text-sm font-medium">{profile?.name || '사용자'}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
