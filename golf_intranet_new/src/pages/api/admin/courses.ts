@@ -81,7 +81,7 @@ export default async function handler(
       const { data: newClubData, error: clubError } = await supabase
         .from('golf_clubs')
         .insert({
-          region: formData.region,
+          region: formData.region as any,
           name: formData.golf_club_name.trim(),
           cancel_deadline_date: 1,
           cancel_deadline_hour: 18,
@@ -120,7 +120,7 @@ export default async function handler(
     console.log('[API] Inserting course...')
     const { error: courseError } = await supabase.from('courses').insert({
       club_id: clubId,
-      region: formData.region,
+      region: formData.region as any,
       golf_club_name: formData.golf_club_name.trim(),
       course_name: formData.course_name.trim(),
     })
