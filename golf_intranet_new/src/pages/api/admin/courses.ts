@@ -1,6 +1,6 @@
-// @ts-nocheck
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 type CourseFormData = {
   region: string
@@ -17,10 +17,9 @@ export default async function handler(
   }
 
   try {
-    const supabase = createClient(req, res)
-
-    // 사용자 인증 확인
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    // 일반 클라이언트로 세션 확인
+    const supabaseAuth = createClient(req, res)
+    const { data: { session }, error: sessionError } = await supabaseAuth.auth.getSession()
 
     if (sessionError || !session) {
       console.error('[API] Session error:', sessionError)
@@ -29,8 +28,10 @@ export default async function handler(
 
     console.log('[API] Session user:', session.user.id)
 
-    // 사용자 권한 확인
-    const { data: userData, error: userError } = await supabase
+    // Admin 클라이언트로 권한 확인 (RLS 우회)
+    const adminClient = createAdminClient()
+
+    const { data: userData, error: userError } = await adminClient
       .from('users')
       .select('type')
       .eq('id', session.user.id)
@@ -41,11 +42,8 @@ export default async function handler(
       return res.status(401).json({ error: '사용자 정보를 확인할 수 없습니다' })
     }
 
-    // 타입 단언으로 TypeScript 에러 해결
-    const user = userData as { type: 'admin' | 'manager' }
-
-    if (user.type !== 'admin') {
-      console.error('[API] User is not admin:', user)
+    if (userData.type !== 'admin') {
+      console.error('[API] User is not admin:', userData)
       return res.status(403).json({ error: '관리자 권한이 필요합니다' })
     }
 
@@ -59,8 +57,10 @@ export default async function handler(
 
     console.log('[API] Creating course:', formData)
 
+    // 이후 모든 DB 작업은 adminClient 사용 (RLS 우회)
+
     // 1. 골프장 존재 확인
-    const { data: existingClubData, error: clubCheckError } = await supabase
+    const { data: existingClubData, error: clubCheckError } = await adminClient
       .from('golf_clubs')
       .select('id')
       .eq('name', formData.golf_club_name.trim())
@@ -73,13 +73,12 @@ export default async function handler(
       return res.status(500).json({ error: '골프장 확인 중 오류가 발생했습니다', details: clubCheckError.message })
     }
 
-    const existingClub = existingClubData as { id: string } | null
-    let clubId = existingClub?.id
+    let clubId = existingClubData?.id
 
     // 2. 골프장이 없으면 생성
     if (!clubId) {
       console.log('[API] Creating new golf club...')
-      const { data: newClubData, error: clubError } = await supabase
+      const { data: newClubData, error: clubError } = await adminClient
         .from('golf_clubs')
         .insert({
           region: formData.region,
@@ -95,13 +94,12 @@ export default async function handler(
         return res.status(500).json({ error: '골프장 생성 중 오류가 발생했습니다', details: clubError?.message })
       }
 
-      const newClub = newClubData as { id: string }
-      clubId = newClub.id
+      clubId = newClubData.id
       console.log('[API] New club created:', clubId)
     }
 
     // 3. 중복 체크
-    const { data: duplicateCourseData } = await supabase
+    const { data: duplicateCourseData } = await adminClient
       .from('courses')
       .select('id')
       .eq('golf_club_name', formData.golf_club_name.trim())
@@ -110,16 +108,14 @@ export default async function handler(
       .is('deleted_at', null)
       .maybeSingle()
 
-    const duplicateCourse = duplicateCourseData as { id: string } | null
-
-    if (duplicateCourse) {
+    if (duplicateCourseData) {
       console.log('[API] Duplicate course found')
       return res.status(409).json({ error: '이미 존재하는 골프장 코스입니다' })
     }
 
     // 4. 코스 추가
     console.log('[API] Inserting course...')
-    const { error: courseError } = await supabase.from('courses').insert({
+    const { error: courseError } = await adminClient.from('courses').insert({
       club_id: clubId,
       region: formData.region,
       golf_club_name: formData.golf_club_name.trim(),
