@@ -29,14 +29,22 @@ export default async function handler(
     console.log('[API] Session user:', session.user.id)
 
     // 사용자 권한 확인
-    const { data: user, error: userError } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from('users')
       .select('type')
       .eq('id', session.user.id)
       .single()
 
-    if (userError || !user || user.type !== 'admin') {
-      console.error('[API] User permission check failed:', userError, user)
+    if (userError || !userData) {
+      console.error('[API] User query failed:', userError)
+      return res.status(401).json({ error: '사용자 정보를 확인할 수 없습니다' })
+    }
+
+    // 타입 단언으로 TypeScript 에러 해결
+    const user = userData as { type: 'admin' | 'manager' }
+
+    if (user.type !== 'admin') {
+      console.error('[API] User is not admin:', user)
       return res.status(403).json({ error: '관리자 권한이 필요합니다' })
     }
 
