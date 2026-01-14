@@ -168,7 +168,9 @@ function CourseTimePage({ profile }: any) {
                         <TableCell>{time.courses?.golf_club_name || '-'}</TableCell>
                         <TableCell>{time.courses?.course_name || '-'}</TableCell>
                         <TableCell>{time.reserved_name}</TableCell>
-                        <TableCell>{time.green_fee.toLocaleString()}원</TableCell>
+                        <TableCell>
+                          {Math.floor(time.green_fee / 10000)}+{Math.floor(time.charge_fee / 10000)}
+                        </TableCell>
                         <TableCell>
                           <span className="font-semibold">{time.join_num}</span>/4
                         </TableCell>

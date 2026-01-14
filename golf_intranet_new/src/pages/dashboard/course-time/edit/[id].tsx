@@ -90,7 +90,12 @@ function EditCourseTimePage({ user, profile }: any) {
           const dateTime = new Date(data.reserved_time)
           setReservedDate(dateTime.toISOString().split('T')[0])
           setReservedTime(dateTime.toTimeString().slice(0, 5))
-          setGreenFee(data.green_fee.toString())
+
+          // 그린피를 "7+1" 형식으로 변환 (원 → 만원)
+          const greenFeeInManWon = Math.floor(data.green_fee / 10000)
+          const chargeFeeInManWon = Math.floor(data.charge_fee / 10000)
+          setGreenFee(`${greenFeeInManWon}+${chargeFeeInManWon}`)
+
           setReservedName(data.reserved_name)
           setRequirements(data.requirements)
           setMemo(data.memo || '')
@@ -178,6 +183,29 @@ function EditCourseTimePage({ user, profile }: any) {
     setFlags(prev => prev ^ flag)
   }
 
+  // 시간 입력 자동 포맷 (1228 → 12:28)
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/[^0-9]/g, '') // 숫자만 허용
+
+    if (value.length >= 4) {
+      // 4자리 이상이면 HH:MM 형식으로 변환
+      const hours = value.slice(0, 2)
+      const minutes = value.slice(2, 4)
+      value = `${hours}:${minutes}`
+    }
+
+    setReservedTime(value)
+  }
+
+  // 그린피 입력 처리 (7+1 형식)
+  const handleGreenFeeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    // 숫자와 + 기호만 허용
+    if (/^[0-9+]*$/.test(value)) {
+      setGreenFee(value)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -191,8 +219,36 @@ function EditCourseTimePage({ user, profile }: any) {
     try {
       const supabase = createClient()
 
+      // 시간 파싱 (12:28 또는 1228 형식 모두 처리)
+      let timeStr = reservedTime
+      if (!timeStr.includes(':')) {
+        // 콜론이 없으면 추가
+        if (timeStr.length === 4) {
+          timeStr = `${timeStr.slice(0, 2)}:${timeStr.slice(2, 4)}`
+        }
+      }
+
       // Combine date and time
-      const reservedDateTime = `${reservedDate}T${reservedTime}:00`
+      const reservedDateTime = `${reservedDate}T${timeStr}:00`
+
+      // 그린피 파싱 (7+1 형식)
+      const feeParts = greenFee.split('+')
+      let greenFeeValue = 0
+      let chargeFeeValue = 0
+
+      if (feeParts.length === 2) {
+        // "7+1" 형식 - 만원 단위를 원으로 변환
+        greenFeeValue = parseInt(feeParts[0]) * 10000
+        chargeFeeValue = parseInt(feeParts[1]) * 10000
+      } else if (feeParts.length === 1 && feeParts[0]) {
+        // "7" 형식 - 그린피만 입력
+        greenFeeValue = parseInt(feeParts[0]) * 10000
+        chargeFeeValue = 0
+      } else {
+        toast.error('그린피 형식이 올바르지 않습니다 (예: 7+1)')
+        setLoading(false)
+        return
+      }
 
       const { error } = await supabase
         .from('course_times')
@@ -200,7 +256,8 @@ function EditCourseTimePage({ user, profile }: any) {
           course_id: courseId,
           reserved_time: reservedDateTime,
           reserved_name: reservedName,
-          green_fee: parseInt(greenFee),
+          green_fee: greenFeeValue,
+          charge_fee: chargeFeeValue,
           requirements: requirements,
           flag: flags,
           memo: memo || null,
@@ -337,10 +394,11 @@ function EditCourseTimePage({ user, profile }: any) {
                   <Label htmlFor="reservedTime">시+분 *</Label>
                   <Input
                     id="reservedTime"
-                    type="time"
+                    type="text"
                     value={reservedTime}
-                    onChange={(e) => setReservedTime(e.target.value)}
-                    placeholder="HH:MM"
+                    onChange={handleTimeChange}
+                    placeholder="1228 또는 12:28"
+                    maxLength={5}
                     required
                   />
                 </div>
@@ -349,10 +407,10 @@ function EditCourseTimePage({ user, profile }: any) {
                   <Label htmlFor="greenFee">그린피 *</Label>
                   <Input
                     id="greenFee"
-                    type="number"
+                    type="text"
                     value={greenFee}
-                    onChange={(e) => setGreenFee(e.target.value)}
-                    placeholder="그린피를 입력하세요"
+                    onChange={handleGreenFeeChange}
+                    placeholder="7+1 (만원 단위)"
                     required
                   />
                 </div>
