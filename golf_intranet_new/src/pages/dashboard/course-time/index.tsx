@@ -18,16 +18,21 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, Filter, MoreHorizontal, Pencil, Trash2, Eye } from 'lucide-react'
+import { Plus, Filter, MoreHorizontal, Pencil, Trash2, Eye, Clock, DollarSign, FastForward } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { withAuth } from '@/lib/hooks/useRequireAuth'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 
+// Flag 비트마스크
+const FLAG_URGENT = 1  // 임박
+const FLAG_COST = 2    // 원가
+const FLAG_JOIN = 4    // 조인
+
 function CourseTimePage({ profile }: any) {
   const router = useRouter()
-  const { courseTimes, loading, fetchCourseTimes, deleteCourseTime } = useCourseTimeStore()
+  const { courseTimes, loading, error, fetchCourseTimes, deleteCourseTime } = useCourseTimeStore()
   const [filters] = useState({
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -36,6 +41,12 @@ function CourseTimePage({ profile }: any) {
   useEffect(() => {
     fetchCourseTimes(filters)
   }, [filters, fetchCourseTimes])
+
+  useEffect(() => {
+    if (error) {
+      toast.error('데이터 로딩 실패', { description: error })
+    }
+  }, [error])
 
   const handleDelete = async (id: string) => {
     if (!confirm('정말 삭제하시겠습니까?')) return
@@ -129,14 +140,37 @@ function CourseTimePage({ profile }: any) {
                     {courseTimes.map((time) => (
                       <TableRow key={time.id}>
                         <TableCell className="font-medium">
-                          {format(new Date(time.reserved_time), 'yyyy-MM-dd HH:mm', {
-                            locale: ko,
-                          })}
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-1">
+                              {time.flag & FLAG_URGENT && (
+                                <Badge variant="default" className="px-1.5 py-0 text-xs">
+                                  <Clock className="h-3 w-3" />
+                                </Badge>
+                              )}
+                              {time.flag & FLAG_COST && (
+                                <Badge variant="default" className="px-1.5 py-0 text-xs">
+                                  <DollarSign className="h-3 w-3" />
+                                </Badge>
+                              )}
+                              {time.flag & FLAG_JOIN && (
+                                <Badge variant="default" className="px-1.5 py-0 text-xs">
+                                  <FastForward className="h-3 w-3" />
+                                </Badge>
+                              )}
+                            </div>
+                            <span>
+                              {format(new Date(time.reserved_time), 'yyyy-MM-dd HH:mm', {
+                                locale: ko,
+                              })}
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell>{time.courses?.golf_club_name || '-'}</TableCell>
                         <TableCell>{time.courses?.course_name || '-'}</TableCell>
                         <TableCell>{time.reserved_name}</TableCell>
-                        <TableCell>{time.green_fee.toLocaleString()}원</TableCell>
+                        <TableCell>
+                          {Math.floor(time.green_fee / 10000)}+{Math.floor(time.charge_fee / 10000)}
+                        </TableCell>
                         <TableCell>
                           <span className="font-semibold">{time.join_num}</span>/4
                         </TableCell>

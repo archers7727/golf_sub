@@ -26,12 +26,15 @@ export function useAuth() {
     // 초기 사용자 로드
     const loadUser = async () => {
       try {
+        console.log('[useAuth] Loading user...')
         const {
           data: { user },
           error: userError,
         } = await supabase.auth.getUser()
 
         if (userError) throw userError
+
+        console.log('[useAuth] User loaded:', user?.id)
 
         if (user) {
           // users.id는 auth.users를 참조하므로 user.id로 직접 조회
@@ -41,14 +44,19 @@ export function useAuth() {
             .eq('id', user.id)
             .single()
 
-          if (profileError) throw profileError
+          if (profileError) {
+            console.error('[useAuth] Profile error:', profileError)
+            throw profileError
+          }
 
+          console.log('[useAuth] Profile loaded:', profile ? (profile as UserProfile).name : null)
           setState({ user, profile, loading: false, error: null })
         } else {
+          console.log('[useAuth] No user found')
           setState({ user: null, profile: null, loading: false, error: null })
         }
       } catch (error) {
-        console.error('Error loading user:', error)
+        console.error('[useAuth] Error loading user:', error)
         setState({
           user: null,
           profile: null,
