@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { Trash2, UserPlus } from 'lucide-react'
+import { Trash2, UserPlus, Copy } from 'lucide-react'
 import { withAuth } from '@/lib/hooks/useRequireAuth'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 
@@ -104,6 +104,13 @@ function ReservationDetailPage({ user, profile }: any) {
     }
   }
 
+  const handleCopyPhone = (phoneNumber: string) => {
+    navigator.clipboard.writeText(phoneNumber)
+    toast.success('전화번호가 복사되었습니다', {
+      description: phoneNumber,
+    })
+  }
+
   const handleDeleteTime = async () => {
     if (!confirm('타임을 삭제하시겠습니까?')) return
     if (!timeId) return
@@ -170,34 +177,34 @@ function ReservationDetailPage({ user, profile }: any) {
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full">
                 <tbody>
-                  <tr className="border-b bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-center w-1/5 border-r">골프장</td>
+                  <tr className="border-b">
+                    <td className="px-4 py-3 font-medium text-center w-1/5 border-r bg-slate-800 text-white">골프장</td>
                     <td className="px-4 py-3 text-center w-1/5 border-r">{time.courses?.golf_club_name || '-'}</td>
-                    <td className="px-4 py-3 font-medium text-center w-1/5 border-r">예약일</td>
+                    <td className="px-4 py-3 font-medium text-center w-1/5 border-r bg-slate-800 text-white">예약일</td>
                     <td className="px-4 py-3 text-center w-2/5">
                       {format(new Date(time.reserved_time), 'MM/dd(E)', { locale: ko })}
                     </td>
                   </tr>
                   <tr className="border-b">
-                    <td className="px-4 py-3 font-medium text-center bg-slate-50 border-r">코스</td>
+                    <td className="px-4 py-3 font-medium text-center bg-slate-800 text-white border-r">코스</td>
                     <td className="px-4 py-3 text-center border-r">{time.courses?.course_name || '-'}</td>
-                    <td className="px-4 py-3 font-medium text-center bg-slate-50 border-r">타임</td>
+                    <td className="px-4 py-3 font-medium text-center bg-slate-800 text-white border-r">타임</td>
                     <td className="px-4 py-3 text-center">
                       {format(new Date(time.reserved_time), 'HH:mm', { locale: ko })}
                     </td>
                   </tr>
-                  <tr className="border-b bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-center border-r">조건</td>
+                  <tr className="border-b">
+                    <td className="px-4 py-3 font-medium text-center border-r bg-slate-800 text-white">조건</td>
                     <td className="px-4 py-3 text-center border-r">
                       <Badge variant="outline">{time.requirements}</Badge>
                     </td>
-                    <td className="px-4 py-3 font-medium text-center border-r">예약자명</td>
+                    <td className="px-4 py-3 font-medium text-center border-r bg-slate-800 text-white">예약자명</td>
                     <td className="px-4 py-3 text-center">{time.reserved_name}</td>
                   </tr>
                   <tr className="border-b">
-                    <td className="px-4 py-3 font-medium text-center bg-slate-50 border-r">조건없음</td>
+                    <td className="px-4 py-3 font-medium text-center bg-slate-800 text-white border-r">조건없음</td>
                     <td className="px-4 py-3 text-center border-r">{time.reserved_name}</td>
-                    <td className="px-4 py-3 font-medium text-center bg-slate-50 border-r">그린피</td>
+                    <td className="px-4 py-3 font-medium text-center bg-slate-800 text-white border-r">그린피</td>
                     <td className="px-4 py-3 text-center">{Math.floor(time.green_fee / 10000)}+{Math.floor(time.charge_fee / 10000)}</td>
                   </tr>
                 </tbody>
@@ -232,11 +239,37 @@ function ReservationDetailPage({ user, profile }: any) {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="space-y-1">
-                    <p className="font-medium">{join.name}</p>
-                    <p className="text-sm text-muted-foreground">{join.join_type}</p>
-                    <p className="text-sm text-muted-foreground">{join.phone_number}</p>
-                    <p className="text-sm font-medium">{join.green_fee.toLocaleString()}원</p>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">담당자</p>
+                      <p className="font-medium">{join.users?.name || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">조인 성별</p>
+                      <p className="text-sm">{join.join_type}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">이름</p>
+                      <p className="text-sm">{join.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">연락처</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm flex-1">{join.phone_number}</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => handleCopyPhone(join.phone_number)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">현장 그린피</p>
+                      <p className="text-sm font-medium">{join.green_fee.toLocaleString()}원</p>
+                    </div>
                     <Badge variant="secondary" className="text-xs">
                       {join.status}
                     </Badge>
