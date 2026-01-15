@@ -76,7 +76,9 @@ export default async function handler(
       return res.status(500).json({ error: '골프장 확인 중 오류가 발생했습니다', details: clubCheckError.message })
     }
 
-    let clubId = existingClubData?.id
+    // 타입 단언
+    const existingClub = existingClubData as { id: string } | null
+    let clubId = existingClub?.id
 
     // 2. 골프장이 없으면 생성
     if (!clubId) {
@@ -97,7 +99,9 @@ export default async function handler(
         return res.status(500).json({ error: '골프장 생성 중 오류가 발생했습니다', details: clubError?.message })
       }
 
-      clubId = newClubData.id
+      // 타입 단언
+      const newClub = newClubData as { id: string }
+      clubId = newClub.id
       console.log('[API] New club created:', clubId)
     }
 
@@ -111,7 +115,10 @@ export default async function handler(
       .is('deleted_at', null)
       .maybeSingle()
 
-    if (duplicateCourseData) {
+    // 타입 단언
+    const duplicateCourse = duplicateCourseData as { id: string } | null
+
+    if (duplicateCourse) {
       console.log('[API] Duplicate course found')
       return res.status(409).json({ error: '이미 존재하는 골프장 코스입니다' })
     }
