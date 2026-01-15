@@ -27,6 +27,7 @@ function ReservationDetailPage({ user, profile }: any) {
     join_type: '남',
     green_fee: 0,
   })
+  const [greenFeeInput, setGreenFeeInput] = useState('')
 
   const time = courseTimes.find((t) => t.id === timeId)
 
@@ -40,6 +41,7 @@ function ReservationDetailPage({ user, profile }: any) {
   useEffect(() => {
     if (time) {
       setJoinForm((prev) => ({ ...prev, green_fee: time.green_fee }))
+      setGreenFeeInput(time.green_fee.toLocaleString())
     }
   }, [time])
 
@@ -73,6 +75,7 @@ function ReservationDetailPage({ user, profile }: any) {
 
       toast.success('조인 추가 완료')
       setJoinForm({ name: '', phone_number: '', join_type: '남', green_fee: time?.green_fee || 0 })
+      setGreenFeeInput((time?.green_fee || 0).toLocaleString())
       fetchCourseTimes()
     } catch (error: any) {
       toast.error('조인 추가 실패', { description: error.message })
@@ -188,22 +191,29 @@ function ReservationDetailPage({ user, profile }: any) {
             <CardHeader>
               <CardTitle>관리</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                className="w-full"
-                variant="destructive"
-                onClick={handleDeleteTime}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                삭제하기
-              </Button>
-              <Button
-                className="w-full"
-                variant="outline"
-                onClick={() => router.push(`/dashboard/course-time/edit/${timeId}`)}
-              >
-                수정하기
-              </Button>
+            <CardContent>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={handleDeleteTime}
+                >
+                  삭제하기
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => router.push(`/dashboard/course-time/edit/${timeId}`)}
+                >
+                  마감대기
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                >
+                  타업체마감
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -281,7 +291,7 @@ function ReservationDetailPage({ user, profile }: any) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>타입</Label>
+                  <Label>조인 성별</Label>
                   <Select
                     value={joinForm.join_type}
                     onValueChange={(value) => setJoinForm({ ...joinForm, join_type: value })}
@@ -296,17 +306,27 @@ function ReservationDetailPage({ user, profile }: any) {
                       <SelectItem value="여">여</SelectItem>
                       <SelectItem value="남남">남남</SelectItem>
                       <SelectItem value="여여">여여</SelectItem>
+                      <SelectItem value="남남남">남남남</SelectItem>
+                      <SelectItem value="남남여">남남여</SelectItem>
+                      <SelectItem value="남여여">남여여</SelectItem>
+                      <SelectItem value="여여여">여여여</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>그린피</Label>
+                  <Label>현장 그린피</Label>
                   <Input
-                    type="number"
-                    value={joinForm.green_fee}
-                    onChange={(e) =>
-                      setJoinForm({ ...joinForm, green_fee: parseInt(e.target.value) })
-                    }
+                    type="text"
+                    value={greenFeeInput}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/,/g, '')
+                      if (/^\d*$/.test(value)) {
+                        const numValue = parseInt(value) || 0
+                        setJoinForm({ ...joinForm, green_fee: numValue })
+                        setGreenFeeInput(numValue.toLocaleString())
+                      }
+                    }}
+                    placeholder="100000"
                   />
                 </div>
               </div>
