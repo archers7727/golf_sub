@@ -24,7 +24,8 @@ function TextViewPage({ profile }: any) {
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     })
-  }, [fetchCourseTimes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 날짜별 그룹핑
   const groupedTimes = useMemo(() => {

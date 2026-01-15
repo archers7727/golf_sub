@@ -19,7 +19,8 @@ function ReservationPage({ profile }: any) {
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     })
-  }, [fetchCourseTimes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 조인이 있는 타임만 필터링
   const reservedTimes = courseTimes.filter((time) => time.join_num > 0)

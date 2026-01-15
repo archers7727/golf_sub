@@ -40,7 +40,8 @@ function CourseTimePage({ profile }: any) {
 
   useEffect(() => {
     fetchCourseTimes(filters)
-  }, [filters, fetchCourseTimes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters])
 
   useEffect(() => {
     if (error) {

@@ -36,7 +36,8 @@ function ReservationDetailPage({ user, profile }: any) {
       fetchCourseTimes()
       fetchJoinPersons(timeId as string)
     }
-  }, [timeId, fetchCourseTimes, fetchJoinPersons])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeId])
 
   useEffect(() => {
     if (time) {
