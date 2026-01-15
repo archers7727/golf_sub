@@ -42,8 +42,11 @@ export default async function handler(
       return res.status(401).json({ error: '사용자 정보를 확인할 수 없습니다' })
     }
 
-    if (userData.type !== 'admin') {
-      console.error('[API] User is not admin:', userData)
+    // 타입 단언 (Supabase 타입 추론 이슈 우회)
+    const user = userData as { type: 'admin' | 'manager' }
+
+    if (user.type !== 'admin') {
+      console.error('[API] User is not admin:', user)
       return res.status(403).json({ error: '관리자 권한이 필요합니다' })
     }
 
