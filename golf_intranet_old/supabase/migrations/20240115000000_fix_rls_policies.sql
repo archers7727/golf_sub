@@ -43,7 +43,11 @@ CREATE POLICY "Admins can manage courses" ON courses
   USING (current_user_is_admin())
   WITH CHECK (current_user_is_admin());
 
--- users policies (순환 참조 제거)
+-- users policies (순환 참조 제거 + 자기 profile 조회 허용)
+CREATE POLICY "Users can view own profile" ON users
+  FOR SELECT
+  USING (auth.uid() = id);
+
 CREATE POLICY "Admins can view all users" ON users
   FOR SELECT
   USING (current_user_is_admin());
