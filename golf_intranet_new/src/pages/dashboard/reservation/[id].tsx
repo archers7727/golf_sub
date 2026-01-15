@@ -27,6 +27,7 @@ function ReservationDetailPage({ user, profile }: any) {
     join_type: '남',
     green_fee: 0,
   })
+  const [greenFeeInput, setGreenFeeInput] = useState('')
 
   const time = courseTimes.find((t) => t.id === timeId)
 
@@ -35,11 +36,13 @@ function ReservationDetailPage({ user, profile }: any) {
       fetchCourseTimes()
       fetchJoinPersons(timeId as string)
     }
-  }, [timeId, fetchCourseTimes, fetchJoinPersons])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeId])
 
   useEffect(() => {
     if (time) {
       setJoinForm((prev) => ({ ...prev, green_fee: time.green_fee }))
+      setGreenFeeInput(time.green_fee.toLocaleString())
     }
   }, [time])
 
@@ -73,6 +76,7 @@ function ReservationDetailPage({ user, profile }: any) {
 
       toast.success('조인 추가 완료')
       setJoinForm({ name: '', phone_number: '', join_type: '남', green_fee: time?.green_fee || 0 })
+      setGreenFeeInput((time?.green_fee || 0).toLocaleString())
       fetchCourseTimes()
     } catch (error: any) {
       toast.error('조인 추가 실패', { description: error.message })
@@ -127,86 +131,86 @@ function ReservationDetailPage({ user, profile }: any) {
     <DashboardLayout profile={profile}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">판매 페이지</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold">판매 페이지</h1>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleDeleteTime}
+              >
+                삭제하기
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => router.push(`/dashboard/course-time/edit/${timeId}`)}
+              >
+                마감대기
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+              >
+                타업체마감
+              </Button>
+            </div>
+          </div>
           <Button variant="outline" onClick={() => router.back()}>
             돌아가기
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 타임 정보 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>타임 정보</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">골프장</span>
-                <span className="font-medium">{time.courses?.golf_club_name || '-'}</span>
+        {/* 타임 정보 - 테이블 형태 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>작성자 : {time.users?.name || '작성자'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full">
+                <tbody>
+                  <tr className="border-b bg-slate-50">
+                    <td className="px-4 py-3 font-medium text-center w-1/5 border-r">골프장</td>
+                    <td className="px-4 py-3 text-center w-1/5 border-r">{time.courses?.golf_club_name || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-center w-1/5 border-r">예약일</td>
+                    <td className="px-4 py-3 text-center w-2/5">
+                      {format(new Date(time.reserved_time), 'MM/dd(E)', { locale: ko })}
+                    </td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="px-4 py-3 font-medium text-center bg-slate-50 border-r">코스</td>
+                    <td className="px-4 py-3 text-center border-r">{time.courses?.course_name || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-center bg-slate-50 border-r">타임</td>
+                    <td className="px-4 py-3 text-center">
+                      {format(new Date(time.reserved_time), 'HH:mm', { locale: ko })}
+                    </td>
+                  </tr>
+                  <tr className="border-b bg-slate-50">
+                    <td className="px-4 py-3 font-medium text-center border-r">조건</td>
+                    <td className="px-4 py-3 text-center border-r">
+                      <Badge variant="outline">{time.requirements}</Badge>
+                    </td>
+                    <td className="px-4 py-3 font-medium text-center border-r">예약자명</td>
+                    <td className="px-4 py-3 text-center">{time.reserved_name}</td>
+                  </tr>
+                  <tr className="border-b">
+                    <td className="px-4 py-3 font-medium text-center bg-slate-50 border-r">조건없음</td>
+                    <td className="px-4 py-3 text-center border-r">{time.reserved_name}</td>
+                    <td className="px-4 py-3 font-medium text-center bg-slate-50 border-r">그린피</td>
+                    <td className="px-4 py-3 text-center">{Math.floor(time.green_fee / 10000)}+{Math.floor(time.charge_fee / 10000)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            {time.memo && (
+              <div className="mt-4 p-3 bg-slate-50 rounded-lg">
+                <span className="font-medium">메모</span>
+                <p className="text-sm mt-1">{time.memo}</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">코스</span>
-                <span className="font-medium">{time.courses?.course_name || '-'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">예약 일시</span>
-                <span className="font-medium">
-                  {format(new Date(time.reserved_time), 'yyyy-MM-dd HH:mm', { locale: ko })}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">예약자</span>
-                <span className="font-medium">{time.reserved_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">그린피</span>
-                <span className="font-medium">{time.green_fee.toLocaleString()}원</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">수수료</span>
-                <span className="font-medium">{time.charge_fee.toLocaleString()}원</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">조건</span>
-                <Badge variant="outline">{time.requirements}</Badge>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">상태</span>
-                <Badge>{time.status}</Badge>
-              </div>
-              {time.memo && (
-                <div className="pt-2">
-                  <span className="text-muted-foreground">메모</span>
-                  <p className="text-sm mt-1">{time.memo}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 관리 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>관리</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                className="w-full"
-                variant="destructive"
-                onClick={handleDeleteTime}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                삭제하기
-              </Button>
-              <Button
-                className="w-full"
-                variant="outline"
-                onClick={() => router.push(`/dashboard/course-time/edit/${timeId}`)}
-              >
-                수정하기
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 조인 현황 */}
         <Card>
@@ -281,7 +285,7 @@ function ReservationDetailPage({ user, profile }: any) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>타입</Label>
+                  <Label>조인 성별</Label>
                   <Select
                     value={joinForm.join_type}
                     onValueChange={(value) => setJoinForm({ ...joinForm, join_type: value })}
@@ -296,17 +300,27 @@ function ReservationDetailPage({ user, profile }: any) {
                       <SelectItem value="여">여</SelectItem>
                       <SelectItem value="남남">남남</SelectItem>
                       <SelectItem value="여여">여여</SelectItem>
+                      <SelectItem value="남남남">남남남</SelectItem>
+                      <SelectItem value="남남여">남남여</SelectItem>
+                      <SelectItem value="남여여">남여여</SelectItem>
+                      <SelectItem value="여여여">여여여</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>그린피</Label>
+                  <Label>현장 그린피</Label>
                   <Input
-                    type="number"
-                    value={joinForm.green_fee}
-                    onChange={(e) =>
-                      setJoinForm({ ...joinForm, green_fee: parseInt(e.target.value) })
-                    }
+                    type="text"
+                    value={greenFeeInput}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/,/g, '')
+                      if (/^\d*$/.test(value)) {
+                        const numValue = parseInt(value) || 0
+                        setJoinForm({ ...joinForm, green_fee: numValue })
+                        setGreenFeeInput(numValue.toLocaleString())
+                      }
+                    }}
+                    placeholder="100000"
                   />
                 </div>
               </div>

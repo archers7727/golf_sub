@@ -40,7 +40,8 @@ function CourseTimePage({ profile }: any) {
 
   useEffect(() => {
     fetchCourseTimes(filters)
-  }, [filters, fetchCourseTimes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters])
 
   useEffect(() => {
     if (error) {
@@ -126,21 +127,71 @@ function CourseTimePage({ profile }: any) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>예약 일시</TableHead>
+                      <TableHead>작성자</TableHead>
                       <TableHead>골프장</TableHead>
+                      <TableHead>예약일</TableHead>
                       <TableHead>코스</TableHead>
-                      <TableHead>예약자</TableHead>
+                      <TableHead>타임</TableHead>
+                      <TableHead>예약자명</TableHead>
                       <TableHead>그린피</TableHead>
-                      <TableHead>조인</TableHead>
-                      <TableHead>상태</TableHead>
+                      <TableHead>조인인원</TableHead>
+                      <TableHead>조건</TableHead>
+                      <TableHead>메모</TableHead>
+                      <TableHead>조인현황</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {courseTimes.map((time) => (
                       <TableRow key={time.id}>
+                        {/* 작성자 */}
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
+                          {time.users?.name || '-'}
+                        </TableCell>
+
+                        {/* 골프장 - clickable */}
+                        <TableCell>
+                          <button
+                            onClick={() => router.push(`/dashboard/reservation/${time.id}`)}
+                            className="text-blue-600 hover:underline text-left"
+                          >
+                            {time.courses?.golf_club_name || '-'}
+                          </button>
+                        </TableCell>
+
+                        {/* 예약일 - 날짜와 요일 */}
+                        <TableCell>
+                          {format(new Date(time.reserved_time), 'MM/dd(E)', {
+                            locale: ko,
+                          })}
+                        </TableCell>
+
+                        {/* 코스 */}
+                        <TableCell>{time.courses?.course_name || '-'}</TableCell>
+
+                        {/* 타임 - 시간만 */}
+                        <TableCell>
+                          {format(new Date(time.reserved_time), 'HH:mm', {
+                            locale: ko,
+                          })}
+                        </TableCell>
+
+                        {/* 예약자명 */}
+                        <TableCell>{time.reserved_name}</TableCell>
+
+                        {/* 그린피 */}
+                        <TableCell>
+                          {Math.floor(time.green_fee / 10000)}+{Math.floor(time.charge_fee / 10000)}
+                        </TableCell>
+
+                        {/* 조인인원 */}
+                        <TableCell>
+                          <span className="font-semibold">{time.join_num}</span>/4
+                        </TableCell>
+
+                        {/* 조건 - flags with status badge */}
+                        <TableCell>
+                          <div className="flex items-center gap-1">
                             <div className="flex gap-1">
                               {time.flag & FLAG_URGENT && (
                                 <Badge variant="default" className="px-1.5 py-0 text-xs">
@@ -158,25 +209,22 @@ function CourseTimePage({ profile }: any) {
                                 </Badge>
                               )}
                             </div>
-                            <span>
-                              {format(new Date(time.reserved_time), 'yyyy-MM-dd HH:mm', {
-                                locale: ko,
-                              })}
-                            </span>
                           </div>
                         </TableCell>
-                        <TableCell>{time.courses?.golf_club_name || '-'}</TableCell>
-                        <TableCell>{time.courses?.course_name || '-'}</TableCell>
-                        <TableCell>{time.reserved_name}</TableCell>
+
+                        {/* 메모 */}
                         <TableCell>
-                          {Math.floor(time.green_fee / 10000)}+{Math.floor(time.charge_fee / 10000)}
+                          <span className="text-sm text-muted-foreground truncate max-w-[100px] block">
+                            {time.memo || '-'}
+                          </span>
                         </TableCell>
-                        <TableCell>
-                          <span className="font-semibold">{time.join_num}</span>/4
-                        </TableCell>
+
+                        {/* 조인현황 - status */}
                         <TableCell>
                           <Badge variant={getStatusVariant(time.status)}>{time.status}</Badge>
                         </TableCell>
+
+                        {/* Actions */}
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

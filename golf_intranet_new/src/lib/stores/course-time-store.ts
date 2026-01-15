@@ -55,7 +55,23 @@ export const useCourseTimeStore = create<CourseTimeState>((set, get) => ({
 
       let query = supabase
         .from('course_times')
-        .select('*')
+        .select(`
+          *,
+          courses:course_id (
+            id,
+            golf_club_name,
+            course_name
+          ),
+          site_ids:site_id (
+            id,
+            site_id,
+            name
+          ),
+          users:author_id (
+            id,
+            name
+          )
+        `)
         .order('reserved_time', { ascending: true })
 
       // 필터 적용

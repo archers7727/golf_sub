@@ -163,69 +163,96 @@ function ManageCoursesPage({ profile }: any) {
 
     setSubmitting(true)
 
+    // 타임아웃 설정 (10초)
+    const timeoutId = setTimeout(() => {
+      console.error('[courses.tsx] Request timeout after 10 seconds')
+      toast.error('요청 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.')
+      setSubmitting(false)
+    }, 10000)
+
     try {
-      // 1. 골프장(golf_clubs)이 존재하는지 확인
-      const { data: existingClub } = await supabase
-        .from('golf_clubs')
-        .select('id')
-        .eq('name', formData.golf_club_name.trim())
-        .eq('region', formData.region)
-        .is('deleted_at', null)
-        .single()
+      console.log('[courses.tsx] Starting course submission:', {
+        region: formData.region,
+        golf_club_name: formData.golf_club_name.trim(),
+        course_name: formData.course_name.trim(),
+        isEditing: !!editingCourse,
+        userProfile: profile,
+      })
 
-      let clubId = existingClub?.id
+      // 0. 사용자 권한 확인
+      if (profile?.type !== 'admin') {
+        console.error('[courses.tsx] User is not admin:', profile)
+        toast.error('관리자 권한이 필요합니다')
+        clearTimeout(timeoutId)
+        setSubmitting(false)
+        return
+      }
+      console.log('[courses.tsx] User admin check passed')
 
-      // 2. 골프장이 없으면 새로 생성
-      if (!clubId) {
-        const { data: newClub, error: clubError } = await supabase
-          .from('golf_clubs')
-          .insert({
-            region: formData.region,
-            name: formData.golf_club_name.trim(),
-            cancel_deadline_date: 1,
-            cancel_deadline_hour: 18,
-          })
-          .select('id')
-          .single()
+      // 0-1. Supabase 세션 확인
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('[courses.tsx] Current session:', {
+        userId: session?.user?.id,
+        hasSession: !!session,
+        userMetadata: session?.user?.user_metadata,
+      })
 
-        if (clubError) throw clubError
-        clubId = newClub.id
+      if (!session) {
+        console.error('[courses.tsx] No active session')
+        toast.error('세션이 만료되었습니다. 다시 로그인해주세요.')
+        clearTimeout(timeoutId)
+        setSubmitting(false)
+        return
       }
 
-      // 3. 코스 추가/수정
-      if (editingCourse) {
-        // 수정 시 기존 골프장 이름이 변경되었는지 확인
-        const { error } = await supabase
-          .from('courses')
-          .update({
-            club_id: clubId,
-            region: formData.region,
-            golf_club_name: formData.golf_club_name.trim(),
-            course_name: formData.course_name.trim(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', editingCourse.id)
+      // API 라우트를 통해 서버 사이드에서 처리 (RLS 우회)
+      console.log('[courses.tsx] Calling API route...')
 
-        if (error) throw error
-        toast.success('골프장이 수정되었습니다')
-      } else {
-        const { error } = await supabase.from('courses').insert({
-          club_id: clubId,
-          region: formData.region,
-          golf_club_name: formData.golf_club_name.trim(),
-          course_name: formData.course_name.trim(),
-        })
+      const apiResponse = await fetch('/api/admin/courses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
 
-        if (error) throw error
-        toast.success('골프장이 추가되었습니다')
+      const apiData = await apiResponse.json()
+
+      if (!apiResponse.ok) {
+        console.error('[courses.tsx] API error:', apiData)
+        throw new Error(apiData.error || apiData.details || '서버 오류가 발생했습니다')
       }
 
+      console.log('[courses.tsx] API response:', apiData)
+      toast.success(apiData.message || '골프장이 추가되었습니다')
+
+      clearTimeout(timeoutId)
+      console.log('[courses.tsx] Closing dialog and refreshing courses...')
       setDialogOpen(false)
-      fetchCourses()
+      await fetchCourses()
+      console.log('[courses.tsx] Course submission completed')
     } catch (error: any) {
-      console.error('Error saving course:', error)
-      toast.error(error.message || '저장에 실패했습니다')
+      clearTimeout(timeoutId)
+      console.error('[courses.tsx] Error saving course:', error)
+
+      // 에러 메시지 상세화
+      let errorMessage = '저장에 실패했습니다. 다시 시도해주세요.'
+
+      if (error.message) {
+        if (error.message.includes('timeout')) {
+          errorMessage = '요청 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.'
+        } else if (error.message.includes('permission') || error.message.includes('policy')) {
+          errorMessage = '권한이 없습니다. 관리자 계정으로 로그인했는지 확인해주세요.'
+        } else if (error.message.includes('duplicate') || error.message.includes('unique')) {
+          errorMessage = '이미 존재하는 데이터입니다.'
+        } else {
+          errorMessage = `오류: ${error.message}`
+        }
+      }
+
+      toast.error(errorMessage)
     } finally {
+      console.log('[courses.tsx] Resetting submitting state')
       setSubmitting(false)
     }
   }
