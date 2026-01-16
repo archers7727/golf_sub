@@ -191,7 +191,7 @@ function ReservationDetailPage({ user, profile }: any) {
     }
   }
 
-  const handleChangeStatus = async (newStatus: string) => {
+  const handleChangeStatus = async (newStatus: '판매완료' | '미판매' | '타업체마감') => {
     if (!timeId) return
 
     try {
