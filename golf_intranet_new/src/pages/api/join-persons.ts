@@ -1,10 +1,11 @@
 /**
  * API Route: /api/join-persons
  * Handles CRUD operations for join persons
+ * Using Prisma ORM for type-safe database access
  */
 
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { prisma } from '@/lib/prisma'
 
 export default async function handler(
   req: NextApiRequest,
@@ -29,130 +30,185 @@ export default async function handler(
   }
 }
 
-/**
- * GET /api/join-persons
- * Query params: timeId, id
- */
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
-  const { timeId, id } = req.query
+  try {
+    const { timeId, id } = req.query
 
-  // Get single join person by ID
-  if (id) {
-    const { data, error } = await supabaseAdmin
-      .from('join_persons')
-      .select(
-        `
-        *,
-        users:manager_id (
-          id,
-          name,
-          phone_number
-        )
-      `
-      )
-      .eq('id', id)
-      .single()
+    // Get single join person by ID
+    if (id && typeof id === 'string') {
+      const joinPerson = await prisma.joinPerson.findUnique({
+        where: { id },
+        include: {
+          manager: {
+            select: {
+              id: true,
+              name: true,
+              phoneNumber: true,
+            },
+          },
+        },
+      })
 
-    if (error) {
-      return res.status(404).json({ error: error.message })
+      if (!joinPerson) {
+        return res.status(404).json({ error: 'Join person not found' })
+      }
+
+      // Transform to snake_case
+      const transformed = {
+        ...joinPerson,
+        manager_id: joinPerson.managerId,
+        time_id: joinPerson.timeId,
+        join_type: joinPerson.joinType,
+        join_num: joinPerson.joinNum,
+        phone_number: joinPerson.phoneNumber,
+        green_fee: joinPerson.greenFee,
+        charge_fee: joinPerson.chargeFee,
+        charge_rate: joinPerson.chargeRate,
+        refund_reason: joinPerson.refundReason,
+        refund_account: joinPerson.refundAccount,
+        created_at: joinPerson.createdAt,
+        updated_at: joinPerson.updatedAt,
+        users: joinPerson.manager ? {
+          id: joinPerson.manager.id,
+          name: joinPerson.manager.name,
+          phone_number: joinPerson.manager.phoneNumber,
+        } : null,
+      }
+
+      return res.status(200).json(transformed)
     }
 
-    return res.status(200).json(data)
+    // Get list by course time ID
+    const where: any = {}
+    if (timeId && typeof timeId === 'string') {
+      where.timeId = timeId
+    }
+
+    const joinPersons = await prisma.joinPerson.findMany({
+      where,
+      include: {
+        manager: {
+          select: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    })
+
+    // Transform to snake_case
+    const transformed = joinPersons.map((jp) => ({
+      ...jp,
+      manager_id: jp.managerId,
+      time_id: jp.timeId,
+      join_type: jp.joinType,
+      join_num: jp.joinNum,
+      phone_number: jp.phoneNumber,
+      green_fee: jp.greenFee,
+      charge_fee: jp.chargeFee,
+      charge_rate: jp.chargeRate,
+      refund_reason: jp.refundReason,
+      refund_account: jp.refundAccount,
+      created_at: jp.createdAt,
+      updated_at: jp.updatedAt,
+      users: jp.manager ? {
+        id: jp.manager.id,
+        name: jp.manager.name,
+        phone_number: jp.manager.phoneNumber,
+      } : null,
+    }))
+
+    return res.status(200).json(transformed)
+  } catch (error) {
+    console.error('Error fetching join persons:', error)
+    return res.status(500).json({ error: 'Failed to fetch join persons' })
   }
-
-  // Get list by course time ID
-  let query = supabaseAdmin.from('join_persons').select(
-    `
-      *,
-      users:manager_id (
-        id,
-        name,
-        phone_number
-      )
-    `
-  )
-
-  if (timeId) {
-    query = query.eq('time_id', timeId)
-  }
-
-  query = query.order('created_at', { ascending: false })
-
-  const { data, error } = await query
-
-  if (error) {
-    return res.status(500).json({ error: error.message })
-  }
-
-  return res.status(200).json(data)
 }
 
-/**
- * POST /api/join-persons
- * Create new join person
- */
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
-  const joinPersonData = req.body
+  try {
+    const data = req.body
 
-  const { data, error } = await supabaseAdmin
-    .from('join_persons')
-    .insert(joinPersonData)
-    .select()
-    .single()
+    const prismaData: any = {
+      managerId: data.manager_id,
+      timeId: data.time_id,
+      name: data.name,
+      joinType: data.join_type,
+      joinNum: data.join_num,
+      phoneNumber: data.phone_number,
+      greenFee: data.green_fee ?? 0,
+      chargeFee: data.charge_fee ?? 0,
+      chargeRate: data.charge_rate ?? 0,
+      status: data.status ?? '입금확인전',
+      refundReason: data.refund_reason,
+      refundAccount: data.refund_account,
+    }
 
-  if (error) {
-    return res.status(400).json({ error: error.message })
+    const joinPerson = await prisma.joinPerson.create({
+      data: prismaData,
+    })
+
+    return res.status(201).json(joinPerson)
+  } catch (error) {
+    console.error('Error creating join person:', error)
+    return res.status(400).json({ error: 'Failed to create join person' })
   }
-
-  return res.status(201).json(data)
 }
 
-/**
- * PUT /api/join-persons
- * Update existing join person
- * Body: { id, ...updateData }
- */
 async function handlePut(req: NextApiRequest, res: NextApiResponse) {
-  const { id, ...updateData } = req.body
+  try {
+    const { id, ...updateData } = req.body
 
-  if (!id) {
-    return res.status(400).json({ error: 'Missing id in request body' })
+    if (!id) {
+      return res.status(400).json({ error: 'Missing id in request body' })
+    }
+
+    // Convert snake_case to camelCase
+    const prismaData: any = {}
+    if (updateData.manager_id !== undefined) prismaData.managerId = updateData.manager_id
+    if (updateData.time_id !== undefined) prismaData.timeId = updateData.time_id
+    if (updateData.name !== undefined) prismaData.name = updateData.name
+    if (updateData.join_type !== undefined) prismaData.joinType = updateData.join_type
+    if (updateData.join_num !== undefined) prismaData.joinNum = updateData.join_num
+    if (updateData.phone_number !== undefined) prismaData.phoneNumber = updateData.phone_number
+    if (updateData.green_fee !== undefined) prismaData.greenFee = updateData.green_fee
+    if (updateData.charge_fee !== undefined) prismaData.chargeFee = updateData.charge_fee
+    if (updateData.charge_rate !== undefined) prismaData.chargeRate = updateData.charge_rate
+    if (updateData.status !== undefined) prismaData.status = updateData.status
+    if (updateData.refund_reason !== undefined) prismaData.refundReason = updateData.refund_reason
+    if (updateData.refund_account !== undefined) prismaData.refundAccount = updateData.refund_account
+
+    const joinPerson = await prisma.joinPerson.update({
+      where: { id },
+      data: prismaData,
+    })
+
+    return res.status(200).json(joinPerson)
+  } catch (error) {
+    console.error('Error updating join person:', error)
+    return res.status(400).json({ error: 'Failed to update join person' })
   }
-
-  const { data, error } = await supabaseAdmin
-    .from('join_persons')
-    .update(updateData)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
-  }
-
-  return res.status(200).json(data)
 }
 
-/**
- * DELETE /api/join-persons
- * Delete join person
- * Body: { id }
- */
 async function handleDelete(req: NextApiRequest, res: NextApiResponse) {
-  const { id } = req.body
+  try {
+    const { id } = req.body
 
-  if (!id) {
-    return res.status(400).json({ error: 'Missing id in request body' })
+    if (!id) {
+      return res.status(400).json({ error: 'Missing id in request body' })
+    }
+
+    await prisma.joinPerson.delete({
+      where: { id },
+    })
+
+    return res.status(200).json({ success: true })
+  } catch (error) {
+    console.error('Error deleting join person:', error)
+    return res.status(400).json({ error: 'Failed to delete join person' })
   }
-
-  const { error } = await supabaseAdmin
-    .from('join_persons')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    return res.status(400).json({ error: error.message })
-  }
-
-  return res.status(200).json({ success: true })
 }
