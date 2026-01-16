@@ -114,8 +114,6 @@ function ReservationDetailPage({ user, profile }: any) {
         let newStatus = time.status
         if (newTotal >= 4) {
           newStatus = '판매완료'
-        } else if (newTotal === 0) {
-          newStatus = '판매전'
         } else {
           newStatus = '미판매'
         }
@@ -156,8 +154,6 @@ function ReservationDetailPage({ user, profile }: any) {
         let newStatus = time.status
         if (newTotal >= 4) {
           newStatus = '판매완료'
-        } else if (newTotal === 0) {
-          newStatus = '판매전'
         } else {
           newStatus = '미판매'
         }
