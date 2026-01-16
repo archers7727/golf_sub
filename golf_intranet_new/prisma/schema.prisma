@@ -11,18 +11,18 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// Enums
+// Enums (영문으로 정의하고 @map으로 한글 DB 값과 매핑)
 enum UserType {
-  manager
-  admin
+  MANAGER @map("manager")
+  ADMIN   @map("admin")
 }
 
 enum GolfRegion {
-  경기북부
-  경기남부
-  충청도
-  경상남도
-  강원도
+  GYEONGGI_NORTH @map("경기북부")
+  GYEONGGI_SOUTH @map("경기남부")
+  CHUNGCHEONG    @map("충청도")
+  GYEONGSANG     @map("경상남도")
+  GANGWON        @map("강원도")
 }
 
 enum ReservableCountType {
@@ -31,43 +31,43 @@ enum ReservableCountType {
 }
 
 enum RequirementsType {
-  조건없음
-  인회필
-  예변필
-  인회필_예변필 @map("인회필/예변필")
+  NONE              @map("조건없음")
+  MEMBERSHIP_REQ    @map("인회필")
+  RESERVATION_REQ   @map("예변필")
+  MEMBERSHIP_AND_RESERVATION @map("인회필/예변필")
 }
 
 enum CourseTimeStatus {
-  판매완료
-  미판매
-  타업체마감
+  SOLD_OUT     @map("판매완료")
+  AVAILABLE    @map("미판매")
+  OTHER_CLOSED @map("타업체마감")
 }
 
 enum JoinPersonStatus {
-  입금확인전
-  입금확인중
-  입금완료
-  환불확인중
-  환불완료
+  PENDING_CONFIRM  @map("입금확인전")
+  CONFIRMING       @map("입금확인중")
+  CONFIRMED        @map("입금완료")
+  REFUND_PENDING   @map("환불확인중")
+  REFUNDED         @map("환불완료")
 }
 
 enum JoinType {
-  양도
-  남여
-  남
-  여
-  남남
-  여여
-  남남남
-  여여여
-  남남여
-  남여여
+  TRANSFER @map("양도")
+  MF       @map("남여")
+  M        @map("남")
+  F        @map("여")
+  MM       @map("남남")
+  FF       @map("여여")
+  MMM      @map("남남남")
+  FFF      @map("여여여")
+  MMF      @map("남남여")
+  MFF      @map("남여여")
 }
 
 // Models
 model User {
   id            String    @id @default(uuid())
-  type          UserType  @default(manager)
+  type          UserType  @default(MANAGER)
   phoneNumber   String    @map("phone_number")
   name          String
   chargeRate    Float     @default(0) @map("charge_rate")
@@ -147,10 +147,10 @@ model CourseTime {
   reservedName String            @map("reserved_name")
   greenFee     Int               @default(0) @map("green_fee")
   chargeFee    Int               @default(0) @map("charge_fee")
-  requirements RequirementsType  @default(조건없음)
+  requirements RequirementsType  @default(NONE)
   flag         Int               @default(0)
   memo         String?
-  status       CourseTimeStatus  @default(미판매)
+  status       CourseTimeStatus  @default(AVAILABLE)
   blockUntil   DateTime?         @map("block_until")
   blockerId    String?           @map("blocker_id")
   joinNum      Int               @default(0) @map("join_num")
@@ -178,7 +178,7 @@ model JoinPerson {
   greenFee      Int              @default(0) @map("green_fee")
   chargeFee     Int              @default(0) @map("charge_fee")
   chargeRate    Float            @default(0) @map("charge_rate")
-  status        JoinPersonStatus @default(입금확인전)
+  status        JoinPersonStatus @default(PENDING_CONFIRM)
   refundReason  String?          @map("refund_reason")
   refundAccount String?          @map("refund_account")
   createdAt     DateTime         @default(now()) @map("created_at")
