@@ -59,3 +59,92 @@ CREATE POLICY "Admins can update users" ON users
 
 -- Grant execute permission on the function to authenticated users
 GRANT EXECUTE ON FUNCTION public.current_user_is_admin() TO authenticated;
+
+-- Drop all old policies that use circular reference pattern
+DROP POLICY IF EXISTS "Users can view their own data" ON users;
+DROP POLICY IF EXISTS "Everyone can view golf clubs" ON golf_clubs;
+DROP POLICY IF EXISTS "Everyone can view courses" ON courses;
+DROP POLICY IF EXISTS "Authenticated users can view site IDs" ON site_ids;
+DROP POLICY IF EXISTS "Admins can manage site IDs" ON site_ids;
+DROP POLICY IF EXISTS "Authenticated users can view course times" ON course_times;
+DROP POLICY IF EXISTS "Users can insert their own course times" ON course_times;
+DROP POLICY IF EXISTS "Users can update their own course times" ON course_times;
+DROP POLICY IF EXISTS "Users can delete their own course times" ON course_times;
+DROP POLICY IF EXISTS "Authenticated users can view join persons" ON join_persons;
+DROP POLICY IF EXISTS "Users can insert their own joins" ON join_persons;
+DROP POLICY IF EXISTS "Users can update their own joins" ON join_persons;
+DROP POLICY IF EXISTS "Admins can update all joins" ON join_persons;
+DROP POLICY IF EXISTS "Authenticated users can view black lists" ON black_lists;
+DROP POLICY IF EXISTS "Users can insert black lists" ON black_lists;
+DROP POLICY IF EXISTS "Everyone can view holidays" ON holidays;
+DROP POLICY IF EXISTS "Admins can manage holidays" ON holidays;
+
+-- site_ids policies
+CREATE POLICY "Authenticated users can view site IDs" ON site_ids
+  FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Admins can manage site IDs" ON site_ids
+  FOR ALL
+  USING (current_user_is_admin())
+  WITH CHECK (current_user_is_admin());
+
+-- course_times policies (모든 매니저가 조회/수정 가능)
+CREATE POLICY "Authenticated users can view course times" ON course_times
+  FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Users can insert course times" ON course_times
+  FOR INSERT
+  WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY "Admins and authors can update course times" ON course_times
+  FOR UPDATE
+  USING (current_user_is_admin() OR auth.uid() = author_id)
+  WITH CHECK (current_user_is_admin() OR auth.uid() = author_id);
+
+CREATE POLICY "Admins and authors can delete course times" ON course_times
+  FOR DELETE
+  USING (current_user_is_admin() OR auth.uid() = author_id);
+
+-- join_persons policies (모든 매니저가 조회 가능, 자신이 추가한 것만 수정/삭제)
+CREATE POLICY "Authenticated users can view join persons" ON join_persons
+  FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Users can insert join persons" ON join_persons
+  FOR INSERT
+  WITH CHECK (auth.uid() = manager_id);
+
+CREATE POLICY "Admins and managers can update join persons" ON join_persons
+  FOR UPDATE
+  USING (current_user_is_admin() OR auth.uid() = manager_id)
+  WITH CHECK (current_user_is_admin() OR auth.uid() = manager_id);
+
+CREATE POLICY "Admins and managers can delete join persons" ON join_persons
+  FOR DELETE
+  USING (current_user_is_admin() OR auth.uid() = manager_id);
+
+-- black_lists policies
+CREATE POLICY "Authenticated users can view black lists" ON black_lists
+  FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Users can insert black lists" ON black_lists
+  FOR INSERT
+  WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY "Admins and authors can manage black lists" ON black_lists
+  FOR ALL
+  USING (current_user_is_admin() OR auth.uid() = author_id)
+  WITH CHECK (current_user_is_admin() OR auth.uid() = author_id);
+
+-- holidays policies
+CREATE POLICY "Authenticated users can view holidays" ON holidays
+  FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Admins can manage holidays" ON holidays
+  FOR ALL
+  USING (current_user_is_admin())
+  WITH CHECK (current_user_is_admin());
