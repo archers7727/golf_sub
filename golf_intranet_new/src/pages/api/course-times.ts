@@ -36,10 +36,10 @@ export default async function handler(
 
 /**
  * GET /api/course-times
- * Query params: startDate, endDate, status, region, id
+ * Query params: startDate, endDate, status, region, id, search
  */
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
-  const { startDate, endDate, status, region, id } = req.query
+  const { startDate, endDate, status, region, id, search } = req.query
 
   try {
     // Get single course time by ID
@@ -119,7 +119,15 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     if (status && typeof status === 'string') {
       where.status = status
     }
-    // Note: region filter would require joining course table
+
+    // Search filter (golf club name, course name, reserved name)
+    if (search && typeof search === 'string') {
+      where.OR = [
+        { reservedName: { contains: search, mode: 'insensitive' } },
+        { course: { golfClubName: { contains: search, mode: 'insensitive' } } },
+        { course: { courseName: { contains: search, mode: 'insensitive' } } },
+      ]
+    }
 
     // Get list with filters
     const courseTimes = await prisma.courseTime.findMany({
