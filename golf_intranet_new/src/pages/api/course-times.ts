@@ -7,19 +7,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 
-// Enum mapping: Korean (DB/Frontend) → English (Prisma)
-const REQUIREMENTS_MAP: Record<string, string> = {
-  '조건없음': 'NONE',
-  '인회필': 'MEMBERSHIP_REQ',
-  '예변필': 'RESERVATION_REQ',
-  '인회필/예변필': 'MEMBERSHIP_AND_RESERVATION',
-}
-
-const STATUS_MAP: Record<string, string> = {
-  '미판매': 'AVAILABLE',
-  '판매완료': 'SOLD_OUT',
-  '타업체마감': 'OTHER_CLOSED',
-}
+// Note: Database stores Korean values directly as TEXT
+// No enum mapping needed - we pass Korean values straight through
 
 export default async function handler(
   req: NextApiRequest,
@@ -207,10 +196,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   try {
     const data = req.body
 
-    // Map Korean values to Prisma enums
-    const requirementsEnum = REQUIREMENTS_MAP[data.requirements] || REQUIREMENTS_MAP['조건없음']
-    const statusEnum = STATUS_MAP[data.status] || STATUS_MAP['미판매']
-
+    // Database stores Korean values directly - no mapping needed
     // Convert snake_case to camelCase for Prisma
     const prismaData: any = {
       authorId: data.author_id,
@@ -220,10 +206,10 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
       reservedName: data.reserved_name,
       greenFee: data.green_fee ?? 0,
       chargeFee: data.charge_fee ?? 0,
-      requirements: requirementsEnum,
+      requirements: data.requirements || '조건없음',
       flag: data.flag ?? 0,
       memo: data.memo,
-      status: statusEnum,
+      status: data.status || '미판매',
       blockUntil: data.block_until ? new Date(data.block_until) : null,
       blockerId: data.blocker_id,
       joinNum: data.join_num ?? 0,
@@ -262,14 +248,10 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
     if (updateData.reserved_name !== undefined) prismaData.reservedName = updateData.reserved_name
     if (updateData.green_fee !== undefined) prismaData.greenFee = updateData.green_fee
     if (updateData.charge_fee !== undefined) prismaData.chargeFee = updateData.charge_fee
-    if (updateData.requirements !== undefined) {
-      prismaData.requirements = REQUIREMENTS_MAP[updateData.requirements] || updateData.requirements
-    }
+    if (updateData.requirements !== undefined) prismaData.requirements = updateData.requirements
     if (updateData.flag !== undefined) prismaData.flag = updateData.flag
     if (updateData.memo !== undefined) prismaData.memo = updateData.memo
-    if (updateData.status !== undefined) {
-      prismaData.status = STATUS_MAP[updateData.status] || updateData.status
-    }
+    if (updateData.status !== undefined) prismaData.status = updateData.status
     if (updateData.block_until !== undefined) prismaData.blockUntil = updateData.block_until ? new Date(updateData.block_until) : null
     if (updateData.blocker_id !== undefined) prismaData.blockerId = updateData.blocker_id
     if (updateData.join_num !== undefined) prismaData.joinNum = updateData.join_num
