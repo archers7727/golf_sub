@@ -120,10 +120,8 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       where.status = status
     }
 
-    // Search filter - only on reservedName for now (simple and safe)
-    if (search && typeof search === 'string') {
-      where.reservedName = { contains: search }
-    }
+    // Search filter disabled for now to fix errors
+    // TODO: Re-implement search in a safer way
 
     // Get list with filters
     const courseTimes = await prisma.courseTime.findMany({

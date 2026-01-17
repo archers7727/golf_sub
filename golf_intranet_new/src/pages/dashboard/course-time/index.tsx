@@ -58,7 +58,7 @@ function CourseTimePage({ profile }: any) {
     fetchCourseTimes({
       startDate: startDate || undefined,
       endDate: endDate || undefined,
-      search: searchQuery || undefined,
+      // search: searchQuery || undefined, // Disabled temporarily
     })
   }
 
