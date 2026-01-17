@@ -72,6 +72,13 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[useAuth] Auth state changed:', event)
+
+      // INITIAL_SESSION 이벤트는 loadUser에서 이미 처리했으므로 무시
+      if (event === 'INITIAL_SESSION') {
+        return
+      }
+
       if (session?.user) {
         // users.id는 auth.users를 참조하므로 user.id로 직접 조회
         const { data: profile } = await supabase

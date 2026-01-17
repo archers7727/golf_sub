@@ -1,6 +1,4 @@
-// @ts-nocheck
 import { create } from 'zustand'
-import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/lib/types/database.types'
 
 type BlackList = Database['public']['Tables']['black_lists']['Row']
@@ -29,58 +27,59 @@ export const useBlackListStore = create<BlackListState>((set, get) => ({
 
   fetchBlackLists: async (searchTerm = '') => {
     set({ loading: true, error: null })
-    const supabase = createClient()
 
     try {
-      let query = supabase
-        .from('black_lists')
-        .select(
-          `
-          *,
-          users:author_id (
-            id,
-            name
-          )
-        `
-        )
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-
-      // 검색어가 있으면 이름 또는 전화번호로 검색
-      if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,phone_number.ilike.%${searchTerm}%`)
+      const response = await fetch('/api/black-lists')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch black lists')
       }
 
-      const { data, error } = await query
+      let data = await response.json()
 
-      if (error) throw error
+      // Client-side search filtering (API doesn't support search yet)
+      if (searchTerm) {
+        const lowerSearch = searchTerm.toLowerCase()
+        data = data.filter(
+          (item: BlackListWithAuthor) =>
+            item.name.toLowerCase().includes(lowerSearch) ||
+            item.phone_number.toLowerCase().includes(lowerSearch)
+        )
+      }
 
-      set({ blackLists: (data || []) as BlackListWithAuthor[], loading: false })
+      set({ blackLists: data as BlackListWithAuthor[], loading: false })
     } catch (error: any) {
       set({ error: error.message, loading: false })
     }
   },
 
   createBlackList: async (data) => {
-    const supabase = createClient()
-    const { error } = await supabase.from('black_lists').insert(data)
+    const response = await fetch('/api/black-lists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to create black list')
+    }
 
     // 목록 새로고침
     await get().fetchBlackLists()
   },
 
   deleteBlackList: async (id) => {
-    const supabase = createClient()
+    const response = await fetch('/api/black-lists', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
 
-    // Soft delete (deleted_at 설정)
-    const { error } = await supabase
-      .from('black_lists')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id)
-
-    if (error) throw error
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to delete black list')
+    }
 
     await get().fetchBlackLists()
   },

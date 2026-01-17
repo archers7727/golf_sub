@@ -1,0 +1,217 @@
+// Prisma Schema for Golf Intranet
+// This schema is based on existing Supabase database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Enums (영문으로 정의하고 @map으로 한글 DB 값과 매핑)
+enum UserType {
+  MANAGER @map("manager")
+  ADMIN   @map("admin")
+}
+
+enum GolfRegion {
+  GYEONGGI_NORTH @map("경기북부")
+  GYEONGGI_SOUTH @map("경기남부")
+  CHUNGCHEONG    @map("충청도")
+  GYEONGSANG     @map("경상남도")
+  GANGWON        @map("강원도")
+}
+
+enum ReservableCountType {
+  TOTAL
+  DAYEND
+}
+
+enum RequirementsType {
+  NONE              @map("조건없음")
+  MEMBERSHIP_REQ    @map("인회필")
+  RESERVATION_REQ   @map("예변필")
+  MEMBERSHIP_AND_RESERVATION @map("인회필/예변필")
+}
+
+enum CourseTimeStatus {
+  SOLD_OUT     @map("판매완료")
+  AVAILABLE    @map("미판매")
+  OTHER_CLOSED @map("타업체마감")
+}
+
+enum JoinPersonStatus {
+  PENDING_CONFIRM  @map("입금확인전")
+  CONFIRMING       @map("입금확인중")
+  CONFIRMED        @map("입금완료")
+  REFUND_PENDING   @map("환불확인중")
+  REFUNDED         @map("환불완료")
+}
+
+enum JoinType {
+  TRANSFER @map("양도")
+  MF       @map("남여")
+  M        @map("남")
+  F        @map("여")
+  MM       @map("남남")
+  FF       @map("여여")
+  MMM      @map("남남남")
+  FFF      @map("여여여")
+  MMF      @map("남남여")
+  MFF      @map("남여여")
+}
+
+// Models
+model User {
+  id            String    @id @default(uuid())
+  type          UserType  @default(MANAGER)
+  phoneNumber   String    @map("phone_number")
+  name          String
+  chargeRate    Float     @default(0) @map("charge_rate")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  // Relations
+  authoredCourseTimes CourseTime[] @relation("CourseTimeAuthor")
+  blockedCourseTimes  CourseTime[] @relation("CourseTimeBlocker")
+  joinPersons         JoinPerson[]
+  blackLists          BlackList[]
+
+  @@map("users")
+}
+
+model GolfClub {
+  id                   String               @id @default(uuid())
+  region               GolfRegion
+  name                 String
+  cancelDeadlineDate   Int                  @default(0) @map("cancel_deadline_date")
+  cancelDeadlineHour   Int                  @default(0) @map("cancel_deadline_hour")
+  reservableCountType  ReservableCountType  @default(TOTAL) @map("reservable_count_type")
+  reservableCount1     Int                  @default(0) @map("reservable_count_1")
+  reservableCount2     Int                  @default(0) @map("reservable_count_2")
+  hidden               Boolean              @default(false)
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  deletedAt            DateTime?            @map("deleted_at")
+
+  // Relations
+  siteIds SiteId[]
+
+  @@map("golf_clubs")
+}
+
+model Course {
+  id           String     @id @default(uuid())
+  clubId       String?    @map("club_id")
+  region       GolfRegion
+  golfClubName String     @map("golf_club_name")
+  courseName   String     @map("course_name")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
+
+  // Relations
+  courseTimes CourseTime[]
+
+  @@map("courses")
+}
+
+model SiteId {
+  id          String     @id @default(uuid())
+  siteId      String     @map("site_id")
+  name        String
+  golfClubId  String?    @map("golf_club_id")
+  disabled    Boolean    @default(false)
+  hidden      Boolean    @default(false)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
+
+  // Relations
+  golfClub    GolfClub?  @relation(fields: [golfClubId], references: [id])
+  courseTimes CourseTime[]
+
+  @@map("site_ids")
+}
+
+model CourseTime {
+  id           String            @id @default(uuid())
+  authorId     String?           @map("author_id")
+  courseId     String?           @map("course_id")
+  siteId       String?           @map("site_id")
+  reservedTime DateTime          @map("reserved_time")
+  reservedName String            @map("reserved_name")
+  greenFee     Int               @default(0) @map("green_fee")
+  chargeFee    Int               @default(0) @map("charge_fee")
+  requirements RequirementsType  @default(NONE)
+  flag         Int               @default(0)
+  memo         String?
+  status       CourseTimeStatus  @default(AVAILABLE)
+  blockUntil   DateTime?         @map("block_until")
+  blockerId    String?           @map("blocker_id")
+  joinNum      Int               @default(0) @map("join_num")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  author      User?        @relation("CourseTimeAuthor", fields: [authorId], references: [id])
+  blocker     User?        @relation("CourseTimeBlocker", fields: [blockerId], references: [id])
+  course      Course?      @relation(fields: [courseId], references: [id])
+  siteIdRel   SiteId?      @relation(fields: [siteId], references: [id])
+  joinPersons JoinPerson[]
+
+  @@map("course_times")
+}
+
+model JoinPerson {
+  id            String           @id @default(uuid())
+  managerId     String?          @map("manager_id")
+  timeId        String?          @map("time_id")
+  name          String
+  joinType      JoinType         @map("join_type")
+  joinNum       Int              @map("join_num")
+  phoneNumber   String           @map("phone_number")
+  greenFee      Int              @default(0) @map("green_fee")
+  chargeFee     Int              @default(0) @map("charge_fee")
+  chargeRate    Float            @default(0) @map("charge_rate")
+  status        JoinPersonStatus @default(PENDING_CONFIRM)
+  refundReason  String?          @map("refund_reason")
+  refundAccount String?          @map("refund_account")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  manager    User?       @relation(fields: [managerId], references: [id])
+  courseTime CourseTime? @relation(fields: [timeId], references: [id])
+
+  @@map("join_persons")
+}
+
+model BlackList {
+  id          String    @id @default(uuid())
+  authorId    String?   @map("author_id")
+  name        String
+  phoneNumber String    @map("phone_number")
+  reason      String
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  author User? @relation(fields: [authorId], references: [id])
+
+  @@map("black_lists")
+}
+
+model Holiday {
+  id        String   @id @default(uuid())
+  date      DateTime @db.Date
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("holidays")
+}

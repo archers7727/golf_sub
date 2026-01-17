@@ -1,6 +1,4 @@
-// @ts-nocheck
 import { create } from 'zustand'
-import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/lib/types/database.types'
 
 type CourseTime = Database['public']['Tables']['course_times']['Row']
@@ -48,50 +46,25 @@ export const useCourseTimeStore = create<CourseTimeState>((set, get) => ({
 
   fetchCourseTimes: async (filters = {}) => {
     set({ loading: true, error: null })
-    const supabase = createClient()
 
     try {
-      console.log('Fetching course times with filters:', filters)
+      // Build query params
+      const params = new URLSearchParams()
+      if (filters.startDate) params.append('startDate', filters.startDate)
+      if (filters.endDate) params.append('endDate', filters.endDate)
+      if (filters.status) params.append('status', filters.status)
+      if (filters.region) params.append('region', filters.region)
 
-      let query = supabase
-        .from('course_times')
-        .select(`
-          *,
-          courses:course_id (
-            id,
-            golf_club_name,
-            course_name
-          ),
-          site_ids:site_id (
-            id,
-            site_id,
-            name
-          ),
-          users:author_id (
-            id,
-            name
-          )
-        `)
-        .order('reserved_time', { ascending: true })
+      const url = `/api/course-times${params.toString() ? `?${params.toString()}` : ''}`
 
-      // 필터 적용
-      if (filters.startDate) {
-        query = query.gte('reserved_time', filters.startDate)
-      }
-      if (filters.endDate) {
-        query = query.lte('reserved_time', filters.endDate)
-      }
-      if (filters.status) {
-        query = query.eq('status', filters.status)
+      const response = await fetch(url)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch course times')
       }
 
-      const { data, error } = await query
-
-      console.log('Query result:', { data, error })
-
-      if (error) throw error
-
-      set({ courseTimes: (data || []) as CourseTimeWithRelations[], loading: false })
+      const data = await response.json()
+      set({ courseTimes: data as CourseTimeWithRelations[], loading: false })
     } catch (error: any) {
       console.error('Error fetching course times:', error)
       set({ error: error.message, loading: false })
@@ -99,29 +72,47 @@ export const useCourseTimeStore = create<CourseTimeState>((set, get) => ({
   },
 
   createCourseTime: async (data) => {
-    const supabase = createClient()
-    const { error } = await supabase.from('course_times').insert(data)
+    const response = await fetch('/api/course-times', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to create course time')
+    }
 
     // 목록 새로고침
     await get().fetchCourseTimes()
   },
 
   updateCourseTime: async (id, data) => {
-    const supabase = createClient()
-    const { error } = await supabase.from('course_times').update(data).eq('id', id)
+    const response = await fetch('/api/course-times', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...data }),
+    })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to update course time')
+    }
 
     await get().fetchCourseTimes()
   },
 
   deleteCourseTime: async (id) => {
-    const supabase = createClient()
-    const { error } = await supabase.from('course_times').delete().eq('id', id)
+    const response = await fetch('/api/course-times', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to delete course time')
+    }
 
     await get().fetchCourseTimes()
   },

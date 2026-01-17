@@ -1,6 +1,4 @@
-// @ts-nocheck
 import { create } from 'zustand'
-import { createClient} from '@/lib/supabase/client'
 import type { Database } from '@/lib/types/database.types'
 
 type JoinPerson = Database['public']['Tables']['join_persons']['Row']
@@ -31,39 +29,37 @@ export const useJoinPersonStore = create<JoinPersonState>((set, get) => ({
 
   fetchJoinPersons: async (timeId) => {
     set({ loading: true, error: null })
-    const supabase = createClient()
 
     try {
-      let query = supabase
-        .from('join_persons')
-        .select(`
-          *,
-          users:manager_id (
-            id,
-            name
-          )
-        `)
-        .order('created_at', { ascending: false })
+      const params = new URLSearchParams()
+      if (timeId) params.append('timeId', timeId)
 
-      if (timeId) {
-        query = query.eq('time_id', timeId)
+      const url = `/api/join-persons${params.toString() ? `?${params.toString()}` : ''}`
+
+      const response = await fetch(url)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch join persons')
       }
 
-      const { data, error } = await query
-
-      if (error) throw error
-
-      set({ joinPersons: (data || []) as JoinPersonWithRelations[], loading: false })
+      const data = await response.json()
+      set({ joinPersons: data as JoinPersonWithRelations[], loading: false })
     } catch (error: any) {
       set({ error: error.message, loading: false })
     }
   },
 
   createJoinPerson: async (data) => {
-    const supabase = createClient()
-    const { error } = await supabase.from('join_persons').insert(data)
+    const response = await fetch('/api/join-persons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to create join person')
+    }
 
     // 목록 새로고침
     if (data.time_id) {
@@ -72,10 +68,16 @@ export const useJoinPersonStore = create<JoinPersonState>((set, get) => ({
   },
 
   updateJoinPerson: async (id, data) => {
-    const supabase = createClient()
-    const { error } = await supabase.from('join_persons').update(data).eq('id', id)
+    const response = await fetch('/api/join-persons', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...data }),
+    })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to update join person')
+    }
 
     // 현재 조인 목록에서 time_id 찾기
     const currentJoin = get().joinPersons.find((j) => j.id === id)
@@ -85,14 +87,19 @@ export const useJoinPersonStore = create<JoinPersonState>((set, get) => ({
   },
 
   deleteJoinPerson: async (id) => {
-    const supabase = createClient()
-
     // 삭제 전 time_id 저장
     const currentJoin = get().joinPersons.find((j) => j.id === id)
 
-    const { error } = await supabase.from('join_persons').delete().eq('id', id)
+    const response = await fetch('/api/join-persons', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
 
-    if (error) throw error
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to delete join person')
+    }
 
     // 목록 새로고침
     if (currentJoin?.time_id) {
