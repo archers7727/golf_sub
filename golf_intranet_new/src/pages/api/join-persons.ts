@@ -7,6 +7,28 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 
+// Enum mapping: Korean (DB/Frontend) → English (Prisma)
+const JOIN_TYPE_MAP: Record<string, string> = {
+  '양도': 'TRANSFER',
+  '남여': 'MF',
+  '남': 'M',
+  '여': 'F',
+  '남남': 'MM',
+  '여여': 'FF',
+  '남남남': 'MMM',
+  '여여여': 'FFF',
+  '남남여': 'MMF',
+  '남여여': 'MFF',
+}
+
+const STATUS_MAP: Record<string, string> = {
+  '입금확인전': 'PENDING_CONFIRM',
+  '입금확인중': 'CONFIRMING',
+  '입금완료': 'CONFIRMED',
+  '환불확인중': 'REFUND_PENDING',
+  '환불완료': 'REFUNDED',
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -133,17 +155,21 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   try {
     const data = req.body
 
+    // Map Korean values to Prisma enums
+    const joinTypeEnum = JOIN_TYPE_MAP[data.join_type] || data.join_type
+    const statusEnum = STATUS_MAP[data.status] || STATUS_MAP['입금확인전']
+
     const prismaData: any = {
       managerId: data.manager_id,
       timeId: data.time_id,
       name: data.name,
-      joinType: data.join_type,
+      joinType: joinTypeEnum,
       joinNum: data.join_num,
       phoneNumber: data.phone_number,
       greenFee: data.green_fee ?? 0,
       chargeFee: data.charge_fee ?? 0,
       chargeRate: data.charge_rate ?? 0,
-      status: data.status ?? '입금확인전',
+      status: statusEnum,
       refundReason: data.refund_reason,
       refundAccount: data.refund_account,
     }
@@ -172,13 +198,17 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
     if (updateData.manager_id !== undefined) prismaData.managerId = updateData.manager_id
     if (updateData.time_id !== undefined) prismaData.timeId = updateData.time_id
     if (updateData.name !== undefined) prismaData.name = updateData.name
-    if (updateData.join_type !== undefined) prismaData.joinType = updateData.join_type
+    if (updateData.join_type !== undefined) {
+      prismaData.joinType = JOIN_TYPE_MAP[updateData.join_type] || updateData.join_type
+    }
     if (updateData.join_num !== undefined) prismaData.joinNum = updateData.join_num
     if (updateData.phone_number !== undefined) prismaData.phoneNumber = updateData.phone_number
     if (updateData.green_fee !== undefined) prismaData.greenFee = updateData.green_fee
     if (updateData.charge_fee !== undefined) prismaData.chargeFee = updateData.charge_fee
     if (updateData.charge_rate !== undefined) prismaData.chargeRate = updateData.charge_rate
-    if (updateData.status !== undefined) prismaData.status = updateData.status
+    if (updateData.status !== undefined) {
+      prismaData.status = STATUS_MAP[updateData.status] || updateData.status
+    }
     if (updateData.refund_reason !== undefined) prismaData.refundReason = updateData.refund_reason
     if (updateData.refund_account !== undefined) prismaData.refundAccount = updateData.refund_account
 
