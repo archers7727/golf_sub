@@ -120,13 +120,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       where.status = status
     }
 
-    // Search filter (golf club name, course name, reserved name)
+    // Search filter - only on reservedName for now (simple and safe)
     if (search && typeof search === 'string') {
-      where.OR = [
-        { reservedName: { contains: search } },
-        { course: { golfClubName: { contains: search } } },
-        { course: { courseName: { contains: search } } },
-      ]
+      where.reservedName = { contains: search }
     }
 
     // Get list with filters
