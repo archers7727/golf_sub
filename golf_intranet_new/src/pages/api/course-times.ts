@@ -123,9 +123,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     // Search filter (golf club name, course name, reserved name)
     if (search && typeof search === 'string') {
       where.OR = [
-        { reservedName: { contains: search, mode: 'insensitive' } },
-        { course: { golfClubName: { contains: search, mode: 'insensitive' } } },
-        { course: { courseName: { contains: search, mode: 'insensitive' } } },
+        { reservedName: { contains: search } },
+        { course: { golfClubName: { contains: search } } },
+        { course: { courseName: { contains: search } } },
       ]
     }
 
