@@ -154,10 +154,18 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   try {
     const data = req.body
+    console.log('[JOIN-PERSON POST] Received data:', JSON.stringify(data, null, 2))
 
     // Map Korean values to Prisma enums
     const joinTypeEnum = JOIN_TYPE_MAP[data.join_type] || data.join_type
     const statusEnum = STATUS_MAP[data.status] || STATUS_MAP['입금확인전']
+
+    console.log('[JOIN-PERSON POST] Mapped enums:', {
+      original_join_type: data.join_type,
+      mapped_join_type: joinTypeEnum,
+      original_status: data.status,
+      mapped_status: statusEnum,
+    })
 
     const prismaData: any = {
       managerId: data.manager_id,
@@ -174,14 +182,24 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
       refundAccount: data.refund_account,
     }
 
+    console.log('[JOIN-PERSON POST] Prisma data:', JSON.stringify(prismaData, null, 2))
+
     const joinPerson = await prisma.joinPerson.create({
       data: prismaData,
     })
 
+    console.log('[JOIN-PERSON POST] Successfully created:', joinPerson.id)
     return res.status(201).json(joinPerson)
   } catch (error) {
-    console.error('Error creating join person:', error)
-    return res.status(400).json({ error: 'Failed to create join person' })
+    console.error('[JOIN-PERSON POST] Error creating join person:', error)
+    if (error instanceof Error) {
+      console.error('[JOIN-PERSON POST] Error message:', error.message)
+      console.error('[JOIN-PERSON POST] Error stack:', error.stack)
+    }
+    return res.status(400).json({
+      error: 'Failed to create join person',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
   }
 }
 
