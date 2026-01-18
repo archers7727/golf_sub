@@ -11,18 +11,13 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// Enums (영문으로 정의하고 @map으로 한글 DB 값과 매핑)
+// Enums
+// Note: Most enums are stored as plain TEXT in the database with Korean values
+// We use String type in models and handle validation in the application layer
+
 enum UserType {
   MANAGER @map("manager")
   ADMIN   @map("admin")
-}
-
-enum GolfRegion {
-  GYEONGGI_NORTH @map("경기북부")
-  GYEONGGI_SOUTH @map("경기남부")
-  CHUNGCHEONG    @map("충청도")
-  GYEONGSANG     @map("경상남도")
-  GANGWON        @map("강원도")
 }
 
 enum ReservableCountType {
@@ -30,39 +25,12 @@ enum ReservableCountType {
   DAYEND
 }
 
-enum RequirementsType {
-  NONE              @map("조건없음")
-  MEMBERSHIP_REQ    @map("인회필")
-  RESERVATION_REQ   @map("예변필")
-  MEMBERSHIP_AND_RESERVATION @map("인회필/예변필")
-}
-
-enum CourseTimeStatus {
-  SOLD_OUT     @map("판매완료")
-  AVAILABLE    @map("미판매")
-  OTHER_CLOSED @map("타업체마감")
-}
-
-enum JoinPersonStatus {
-  PENDING_CONFIRM  @map("입금확인전")
-  CONFIRMING       @map("입금확인중")
-  CONFIRMED        @map("입금완료")
-  REFUND_PENDING   @map("환불확인중")
-  REFUNDED         @map("환불완료")
-}
-
-enum JoinType {
-  TRANSFER @map("양도")
-  MF       @map("남여")
-  M        @map("남")
-  F        @map("여")
-  MM       @map("남남")
-  FF       @map("여여")
-  MMM      @map("남남남")
-  FFF      @map("여여여")
-  MMF      @map("남남여")
-  MFF      @map("남여여")
-}
+// Database stores Korean text values directly for these fields:
+// - GolfRegion: "경기북부", "경기남부", "충청도", "경상남도", "강원도"
+// - RequirementsType: "조건없음", "인회필", "예변필", "인회필/예변필"
+// - CourseTimeStatus: "미판매", "판매완료", "타업체마감"
+// - JoinType: "남", "여", "남남", "여여", "남녀", "양도", "남남남", "여여여", "남남여", "남여여"
+// - JoinPersonStatus: "입금확인전", "입금확인중", "입금완료", "환불확인중", "환불완료"
 
 // Models
 model User {
@@ -86,7 +54,7 @@ model User {
 
 model GolfClub {
   id                   String               @id @default(uuid())
-  region               GolfRegion
+  region               String               // Korean values: "경기북부", "경기남부", etc.
   name                 String
   cancelDeadlineDate   Int                  @default(0) @map("cancel_deadline_date")
   cancelDeadlineHour   Int                  @default(0) @map("cancel_deadline_hour")
@@ -107,7 +75,7 @@ model GolfClub {
 model Course {
   id           String     @id @default(uuid())
   clubId       String?    @map("club_id")
-  region       GolfRegion
+  region       String     // Korean values: "경기북부", "경기남부", etc.
   golfClubName String     @map("golf_club_name")
   courseName   String     @map("course_name")
   createdAt    DateTime   @default(now()) @map("created_at")
@@ -147,10 +115,10 @@ model CourseTime {
   reservedName String            @map("reserved_name")
   greenFee     Int               @default(0) @map("green_fee")
   chargeFee    Int               @default(0) @map("charge_fee")
-  requirements RequirementsType  @default(NONE)
+  requirements String            @default("조건없음") // Korean values: "조건없음", "인회필", etc.
   flag         Int               @default(0)
   memo         String?
-  status       CourseTimeStatus  @default(AVAILABLE)
+  status       String            @default("미판매") // Korean values: "미판매", "판매완료", "타업체마감"
   blockUntil   DateTime?         @map("block_until")
   blockerId    String?           @map("blocker_id")
   joinNum      Int               @default(0) @map("join_num")
@@ -172,13 +140,13 @@ model JoinPerson {
   managerId     String?          @map("manager_id")
   timeId        String?          @map("time_id")
   name          String
-  joinType      JoinType         @map("join_type")
+  joinType      String           @map("join_type") // Korean values: "남", "여", "남남", "양도", etc.
   joinNum       Int              @map("join_num")
   phoneNumber   String           @map("phone_number")
   greenFee      Int              @default(0) @map("green_fee")
   chargeFee     Int              @default(0) @map("charge_fee")
   chargeRate    Float            @default(0) @map("charge_rate")
-  status        JoinPersonStatus @default(PENDING_CONFIRM)
+  status        String           @default("입금확인전") // Korean values: "입금확인전", "입금확인중", etc.
   refundReason  String?          @map("refund_reason")
   refundAccount String?          @map("refund_account")
   createdAt     DateTime         @default(now()) @map("created_at")

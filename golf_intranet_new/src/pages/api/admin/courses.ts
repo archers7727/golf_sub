@@ -54,22 +54,13 @@ export default async function handler(
 
     console.log('[API] Creating course:', formData)
 
-    // Map region string to GolfRegion enum
-    const regionMap: Record<string, string> = {
-      '경기북부': 'GYEONGGI_NORTH',
-      '경기남부': 'GYEONGGI_SOUTH',
-      '충청도': 'CHUNGCHEONG',
-      '경상남도': 'GYEONGSANG',
-      '강원도': 'GANGWON',
-    }
-
-    const regionEnum = regionMap[formData.region] || formData.region
+    // Database stores Korean region values directly - no mapping needed
 
     // 1. 골프장 존재 확인
     const existingClub = await prisma.golfClub.findFirst({
       where: {
         name: formData.golf_club_name.trim(),
-        region: regionEnum as any,
+        region: formData.region,
         deletedAt: null,
       },
       select: { id: true },
@@ -82,7 +73,7 @@ export default async function handler(
       console.log('[API] Creating new golf club...')
       const newClub = await prisma.golfClub.create({
         data: {
-          region: regionEnum as any,
+          region: formData.region,
           name: formData.golf_club_name.trim(),
           cancelDeadlineDate: 1,
           cancelDeadlineHour: 18,
@@ -99,7 +90,7 @@ export default async function handler(
       where: {
         golfClubName: formData.golf_club_name.trim(),
         courseName: formData.course_name.trim(),
-        region: regionEnum as any,
+        region: formData.region,
         deletedAt: null,
       },
       select: { id: true },
@@ -115,7 +106,7 @@ export default async function handler(
     await prisma.course.create({
       data: {
         clubId: clubId,
-        region: regionEnum as any,
+        region: formData.region,
         golfClubName: formData.golf_club_name.trim(),
         courseName: formData.course_name.trim(),
       },

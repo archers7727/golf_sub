@@ -27,6 +27,7 @@ interface CourseTimeFilters {
   endDate?: string
   status?: string
   region?: string
+  search?: string
 }
 
 interface CourseTimeState {

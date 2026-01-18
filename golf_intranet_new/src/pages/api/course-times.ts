@@ -7,19 +7,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 
-// Enum mapping: Korean (DB/Frontend) → English (Prisma)
-const REQUIREMENTS_MAP: Record<string, string> = {
-  '조건없음': 'NONE',
-  '인회필': 'MEMBERSHIP_REQ',
-  '예변필': 'RESERVATION_REQ',
-  '인회필/예변필': 'MEMBERSHIP_AND_RESERVATION',
-}
-
-const STATUS_MAP: Record<string, string> = {
-  '미판매': 'AVAILABLE',
-  '판매완료': 'SOLD_OUT',
-  '타업체마감': 'OTHER_CLOSED',
-}
+// Note: Database stores Korean values directly as TEXT
+// No enum mapping needed - we pass Korean values straight through
 
 export default async function handler(
   req: NextApiRequest,
@@ -47,10 +36,10 @@ export default async function handler(
 
 /**
  * GET /api/course-times
- * Query params: startDate, endDate, status, region, id
+ * Query params: startDate, endDate, status, region, id, search
  */
 async function handleGet(req: NextApiRequest, res: NextApiResponse) {
-  const { startDate, endDate, status, region, id } = req.query
+  const { startDate, endDate, status, region, id, search } = req.query
 
   try {
     // Get single course time by ID
@@ -118,54 +107,20 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       return res.status(200).json(transformed)
     }
 
-    // Build where clause for list query
-    const where: any = {}
+    // TEMPORARY: Most minimal query possible to debug "prepared statement" error
+    // TODO: Re-add filters once basic query works
+    console.log('[COURSE-TIMES GET] Fetching all records (minimal query)...')
 
-    if (startDate && typeof startDate === 'string') {
-      where.reservedTime = { ...where.reservedTime, gte: new Date(startDate) }
-    }
-    if (endDate && typeof endDate === 'string') {
-      where.reservedTime = { ...where.reservedTime, lte: new Date(endDate) }
-    }
-    if (status && typeof status === 'string') {
-      where.status = status
-    }
-    // Note: region filter would require joining course table
-
-    // Get list with filters
+    // Get list - NO WHERE, NO ORDER BY, NO INCLUDES
     const courseTimes = await prisma.courseTime.findMany({
-      where,
-      include: {
-        course: {
-          select: {
-            id: true,
-            golfClubName: true,
-            courseName: true,
-            region: true,
-          },
-        },
-        siteIdRel: {
-          select: {
-            id: true,
-            siteId: true,
-            name: true,
-          },
-        },
-        author: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: {
-        reservedTime: 'desc',
-      },
+      take: 50, // Small limit for safety
     })
 
-    // Transform to match frontend expectations (snake_case)
+    console.log('[COURSE-TIMES GET] Found', courseTimes.length, 'records')
+
+    // Simple transform - no relations
     const transformed = courseTimes.map((ct) => ({
-      ...ct,
+      id: ct.id,
       author_id: ct.authorId,
       course_id: ct.courseId,
       site_id: ct.siteId,
@@ -173,29 +128,31 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       reserved_name: ct.reservedName,
       green_fee: ct.greenFee,
       charge_fee: ct.chargeFee,
+      requirements: ct.requirements,
+      flag: ct.flag,
+      memo: ct.memo,
+      status: ct.status,
       block_until: ct.blockUntil,
       blocker_id: ct.blockerId,
       join_num: ct.joinNum,
       created_at: ct.createdAt,
       updated_at: ct.updatedAt,
-      courses: ct.course ? {
-        id: ct.course.id,
-        golf_club_name: ct.course.golfClubName,
-        course_name: ct.course.courseName,
-        region: ct.course.region,
-      } : null,
-      site_ids: ct.siteIdRel ? {
-        id: ct.siteIdRel.id,
-        site_id: ct.siteIdRel.siteId,
-        name: ct.siteIdRel.name,
-      } : null,
-      users: ct.author,
+      // No relations for now
+      courses: null,
+      site_ids: null,
+      users: null,
     }))
 
     return res.status(200).json(transformed)
   } catch (error) {
-    console.error('Error fetching course times:', error)
-    return res.status(500).json({ error: 'Failed to fetch course times' })
+    console.error('[COURSE-TIMES GET] Error fetching course times:', error)
+    if (error instanceof Error) {
+      console.error('[COURSE-TIMES GET] Error details:', error.message, error.stack)
+    }
+    return res.status(500).json({
+      error: 'Failed to fetch course times',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
   }
 }
 
@@ -207,10 +164,7 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
   try {
     const data = req.body
 
-    // Map Korean values to Prisma enums
-    const requirementsEnum = REQUIREMENTS_MAP[data.requirements] || REQUIREMENTS_MAP['조건없음']
-    const statusEnum = STATUS_MAP[data.status] || STATUS_MAP['미판매']
-
+    // Database stores Korean values directly - no mapping needed
     // Convert snake_case to camelCase for Prisma
     const prismaData: any = {
       authorId: data.author_id,
@@ -220,10 +174,10 @@ async function handlePost(req: NextApiRequest, res: NextApiResponse) {
       reservedName: data.reserved_name,
       greenFee: data.green_fee ?? 0,
       chargeFee: data.charge_fee ?? 0,
-      requirements: requirementsEnum,
+      requirements: data.requirements || '조건없음',
       flag: data.flag ?? 0,
       memo: data.memo,
-      status: statusEnum,
+      status: data.status || '미판매',
       blockUntil: data.block_until ? new Date(data.block_until) : null,
       blockerId: data.blocker_id,
       joinNum: data.join_num ?? 0,
@@ -262,14 +216,10 @@ async function handlePut(req: NextApiRequest, res: NextApiResponse) {
     if (updateData.reserved_name !== undefined) prismaData.reservedName = updateData.reserved_name
     if (updateData.green_fee !== undefined) prismaData.greenFee = updateData.green_fee
     if (updateData.charge_fee !== undefined) prismaData.chargeFee = updateData.charge_fee
-    if (updateData.requirements !== undefined) {
-      prismaData.requirements = REQUIREMENTS_MAP[updateData.requirements] || updateData.requirements
-    }
+    if (updateData.requirements !== undefined) prismaData.requirements = updateData.requirements
     if (updateData.flag !== undefined) prismaData.flag = updateData.flag
     if (updateData.memo !== undefined) prismaData.memo = updateData.memo
-    if (updateData.status !== undefined) {
-      prismaData.status = STATUS_MAP[updateData.status] || updateData.status
-    }
+    if (updateData.status !== undefined) prismaData.status = updateData.status
     if (updateData.block_until !== undefined) prismaData.blockUntil = updateData.block_until ? new Date(updateData.block_until) : null
     if (updateData.blocker_id !== undefined) prismaData.blockerId = updateData.blocker_id
     if (updateData.join_num !== undefined) prismaData.joinNum = updateData.join_num
