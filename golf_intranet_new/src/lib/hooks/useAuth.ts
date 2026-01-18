@@ -12,58 +12,90 @@ interface AuthState {
   error: string | null
 }
 
+// Global cache to prevent re-fetching on every navigation
+let globalAuthState: AuthState | null = null
+let authPromise: Promise<void> | null = null
+
 export function useAuth() {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    profile: null,
-    loading: true,
-    error: null,
-  })
+  const [state, setState] = useState<AuthState>(
+    globalAuthState || {
+      user: null,
+      profile: null,
+      loading: true,
+      error: null,
+    }
+  )
 
   useEffect(() => {
+    // If already loaded, use cached state
+    if (globalAuthState && !globalAuthState.loading) {
+      setState(globalAuthState)
+      return
+    }
+
     const supabase = createClient()
 
     // 초기 사용자 로드
     const loadUser = async () => {
-      try {
-        console.log('[useAuth] Loading user...')
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser()
-
-        if (userError) throw userError
-
-        console.log('[useAuth] User loaded:', user?.id)
-
-        if (user) {
-          // users.id는 auth.users를 참조하므로 user.id로 직접 조회
-          const { data: profile, error: profileError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', user.id)
-            .single()
-
-          if (profileError) {
-            console.error('[useAuth] Profile error:', profileError)
-            throw profileError
-          }
-
-          console.log('[useAuth] Profile loaded:', profile ? (profile as UserProfile).name : null)
-          setState({ user, profile, loading: false, error: null })
-        } else {
-          console.log('[useAuth] No user found')
-          setState({ user: null, profile: null, loading: false, error: null })
+      // Prevent multiple simultaneous loads
+      if (authPromise) {
+        await authPromise
+        if (globalAuthState) {
+          setState(globalAuthState)
         }
-      } catch (error) {
-        console.error('[useAuth] Error loading user:', error)
-        setState({
-          user: null,
-          profile: null,
-          loading: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        })
+        return
       }
+
+      authPromise = (async () => {
+        try {
+          console.log('[useAuth] Loading user...')
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser()
+
+          if (userError) throw userError
+
+          console.log('[useAuth] User loaded:', user?.id)
+
+          if (user) {
+            const { data: profile, error: profileError } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', user.id)
+              .single()
+
+            if (profileError) {
+              console.error('[useAuth] Profile error:', profileError)
+              throw profileError
+            }
+
+            console.log('[useAuth] Profile loaded:', profile ? (profile as UserProfile).name : null)
+            const newState = { user, profile, loading: false, error: null }
+            globalAuthState = newState
+            setState(newState)
+          } else {
+            console.log('[useAuth] No user found')
+            const newState = { user: null, profile: null, loading: false, error: null }
+            globalAuthState = newState
+            setState(newState)
+          }
+        } catch (error) {
+          console.error('[useAuth] Error loading user:', error)
+          const newState = {
+            user: null,
+            profile: null,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }
+          globalAuthState = newState
+          setState(newState)
+        } finally {
+          authPromise = null
+        }
+      })()
+
+      await authPromise
     }
 
     loadUser()
@@ -79,22 +111,28 @@ export function useAuth() {
         return
       }
 
+      if (event === 'SIGNED_OUT') {
+        const newState = { user: null, profile: null, loading: false, error: null }
+        globalAuthState = newState
+        setState(newState)
+        return
+      }
+
       if (session?.user) {
-        // users.id는 auth.users를 참조하므로 user.id로 직접 조회
         const { data: profile } = await supabase
           .from('users')
           .select('*')
           .eq('id', session.user.id)
           .single()
 
-        setState({
+        const newState = {
           user: session.user,
           profile: profile || null,
           loading: false,
           error: null,
-        })
-      } else {
-        setState({ user: null, profile: null, loading: false, error: null })
+        }
+        globalAuthState = newState
+        setState(newState)
       }
     })
 
