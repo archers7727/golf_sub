@@ -18,9 +18,11 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout'
 function ReservationDetailPage({ user, profile }: any) {
   const router = useRouter()
   const { id: timeId } = router.query
-  const { courseTimes, fetchCourseTimes, deleteCourseTime, updateCourseTime } = useCourseTimeStore()
+  const { deleteCourseTime, updateCourseTime } = useCourseTimeStore()
   const { joinPersons, fetchJoinPersons, createJoinPerson, deleteJoinPerson } = useJoinPersonStore()
 
+  const [time, setTime] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const [joinForm, setJoinForm] = useState({
     name: '',
     phone_number: '',
@@ -29,13 +31,25 @@ function ReservationDetailPage({ user, profile }: any) {
   })
   const [greenFeeInput, setGreenFeeInput] = useState('')
 
-  const time = courseTimes.find((t) => t.id === timeId)
-
+  // Fetch single course time by ID (faster than fetching all)
   useEffect(() => {
-    if (timeId) {
-      fetchCourseTimes()
-      fetchJoinPersons(timeId as string)
+    const fetchData = async () => {
+      if (!timeId) return
+      setLoading(true)
+      try {
+        const response = await fetch(`/api/course-times?id=${timeId}`)
+        if (response.ok) {
+          const data = await response.json()
+          setTime(data)
+        }
+        await fetchJoinPersons(timeId as string)
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
+      }
     }
+    fetchData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeId])
 
@@ -45,6 +59,20 @@ function ReservationDetailPage({ user, profile }: any) {
       setGreenFeeInput(time.green_fee.toLocaleString())
     }
   }, [time])
+
+  // Refetch single course time data
+  const refetchTime = async () => {
+    if (!timeId) return
+    try {
+      const response = await fetch(`/api/course-times?id=${timeId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setTime(data)
+      }
+    } catch (error) {
+      console.error('Error refetching time:', error)
+    }
+  }
 
   // 조인 타입별 인원 계산
   const getJoinCount = (joinType: string): number => {
@@ -127,7 +155,7 @@ function ReservationDetailPage({ user, profile }: any) {
       toast.success('조인 추가 완료')
       setJoinForm({ name: '', phone_number: '', join_type: '남', green_fee: time?.green_fee || 0 })
       setGreenFeeInput((time?.green_fee || 0).toLocaleString())
-      fetchCourseTimes()
+      refetchTime()
     } catch (error: any) {
       toast.error('조인 추가 실패', { description: error.message })
     }
@@ -165,7 +193,7 @@ function ReservationDetailPage({ user, profile }: any) {
       }
 
       toast.success('조인 취소 완료')
-      fetchCourseTimes()
+      refetchTime()
     } catch (error: any) {
       toast.error('조인 취소 실패', { description: error.message })
     }
@@ -199,10 +227,20 @@ function ReservationDetailPage({ user, profile }: any) {
       toast.success('상태 변경 완료', {
         description: `${newStatus}로 변경되었습니다.`,
       })
-      fetchCourseTimes()
+      refetchTime()
     } catch (error: any) {
       toast.error('상태 변경 실패', { description: error.message })
     }
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout profile={profile}>
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">로딩 중...</p>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   if (!time) {
@@ -373,11 +411,11 @@ function ReservationDetailPage({ user, profile }: any) {
                 </div>
               ))}
 
-              {/* 빈 자리 */}
-              {Array.from({ length: 4 - joinPersons.length }).map((_, index) => (
+              {/* 빈 자리 - 남은 슬롯만큼 표시 */}
+              {Array.from({ length: Math.max(0, 4 - joinPersons.length) }).map((_, index) => (
                 <div
                   key={`empty-${index}`}
-                  className="border border-dashed rounded-lg p-4 flex items-center justify-center text-muted-foreground"
+                  className="border border-dashed rounded-lg p-4 flex items-center justify-center text-muted-foreground min-h-[200px]"
                 >
                   빈 자리
                 </div>
