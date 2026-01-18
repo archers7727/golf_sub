@@ -107,28 +107,13 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       return res.status(200).json(transformed)
     }
 
-    // Build where clause for list query
-    const where: any = {}
+    // TEMPORARY: Most minimal query possible to debug "prepared statement" error
+    // TODO: Re-add filters once basic query works
+    console.log('[COURSE-TIMES GET] Fetching all records (minimal query)...')
 
-    if (startDate && typeof startDate === 'string') {
-      where.reservedTime = { ...where.reservedTime, gte: new Date(startDate) }
-    }
-    if (endDate && typeof endDate === 'string') {
-      where.reservedTime = { ...where.reservedTime, lte: new Date(endDate) }
-    }
-    if (status && typeof status === 'string') {
-      where.status = status
-    }
-
-    console.log('[COURSE-TIMES GET] Fetching with filters:', where)
-
-    // Get list with filters - NO INCLUDES for now to debug
+    // Get list - NO WHERE, NO ORDER BY, NO INCLUDES
     const courseTimes = await prisma.courseTime.findMany({
-      where,
-      orderBy: {
-        reservedTime: 'desc',
-      },
-      take: 100, // Limit results for safety
+      take: 50, // Small limit for safety
     })
 
     console.log('[COURSE-TIMES GET] Found', courseTimes.length, 'records')
