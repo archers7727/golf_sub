@@ -120,43 +120,22 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       where.status = status
     }
 
-    // Search filter disabled for now to fix errors
-    // TODO: Re-implement search in a safer way
+    console.log('[COURSE-TIMES GET] Fetching with filters:', where)
 
-    // Get list with filters
+    // Get list with filters - NO INCLUDES for now to debug
     const courseTimes = await prisma.courseTime.findMany({
       where,
-      include: {
-        course: {
-          select: {
-            id: true,
-            golfClubName: true,
-            courseName: true,
-            region: true,
-          },
-        },
-        siteIdRel: {
-          select: {
-            id: true,
-            siteId: true,
-            name: true,
-          },
-        },
-        author: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
       orderBy: {
         reservedTime: 'desc',
       },
+      take: 100, // Limit results for safety
     })
 
-    // Transform to match frontend expectations (snake_case)
+    console.log('[COURSE-TIMES GET] Found', courseTimes.length, 'records')
+
+    // Simple transform - no relations
     const transformed = courseTimes.map((ct) => ({
-      ...ct,
+      id: ct.id,
       author_id: ct.authorId,
       course_id: ct.courseId,
       site_id: ct.siteId,
@@ -164,29 +143,31 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       reserved_name: ct.reservedName,
       green_fee: ct.greenFee,
       charge_fee: ct.chargeFee,
+      requirements: ct.requirements,
+      flag: ct.flag,
+      memo: ct.memo,
+      status: ct.status,
       block_until: ct.blockUntil,
       blocker_id: ct.blockerId,
       join_num: ct.joinNum,
       created_at: ct.createdAt,
       updated_at: ct.updatedAt,
-      courses: ct.course ? {
-        id: ct.course.id,
-        golf_club_name: ct.course.golfClubName,
-        course_name: ct.course.courseName,
-        region: ct.course.region,
-      } : null,
-      site_ids: ct.siteIdRel ? {
-        id: ct.siteIdRel.id,
-        site_id: ct.siteIdRel.siteId,
-        name: ct.siteIdRel.name,
-      } : null,
-      users: ct.author,
+      // No relations for now
+      courses: null,
+      site_ids: null,
+      users: null,
     }))
 
     return res.status(200).json(transformed)
   } catch (error) {
-    console.error('Error fetching course times:', error)
-    return res.status(500).json({ error: 'Failed to fetch course times' })
+    console.error('[COURSE-TIMES GET] Error fetching course times:', error)
+    if (error instanceof Error) {
+      console.error('[COURSE-TIMES GET] Error details:', error.message, error.stack)
+    }
+    return res.status(500).json({
+      error: 'Failed to fetch course times',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
   }
 }
 
