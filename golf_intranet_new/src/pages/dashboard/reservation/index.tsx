@@ -1,10 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { useCourseTimeStore } from '@/lib/stores/course-time-store'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Eye } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Eye, Search, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { withAuth } from '@/lib/hooks/useRequireAuth'
@@ -14,16 +16,35 @@ function ReservationPage({ profile }: any) {
   const router = useRouter()
   const { courseTimes, loading, fetchCourseTimes } = useCourseTimeStore()
 
+  // Filter states
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+
   useEffect(() => {
-    fetchCourseTimes({
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    })
+    // Load all times (no date filter by default)
+    fetchCourseTimes({})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 조인이 있는 타임만 필터링
-  const reservedTimes = courseTimes.filter((time) => time.join_num > 0)
+  const handleApplyFilters = () => {
+    fetchCourseTimes({
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      // search: searchQuery || undefined, // Disabled temporarily
+    })
+  }
+
+  const handleClearFilters = () => {
+    setStartDate('')
+    setEndDate('')
+    setSearchQuery('')
+    fetchCourseTimes({})
+  }
+
+  // Show all times (removed join_num > 0 filter)
+  const reservedTimes = courseTimes
 
   return (
     <DashboardLayout profile={profile}>
@@ -31,9 +52,73 @@ function ReservationPage({ profile }: any) {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">예약 관리</h1>
-            <p className="text-muted-foreground mt-1">조인 예약 현황을 관리합니다</p>
+            <p className="text-muted-foreground mt-1">전체 예약 현황을 관리합니다</p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            필터 {showFilters ? '숨기기' : '보기'}
+          </Button>
         </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">필터</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">시작 날짜</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">종료 날짜</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="search">검색</Label>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="search"
+                      placeholder="골프장, 예약자명 검색"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleApplyFilters()
+                      }}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <Button onClick={handleApplyFilters}>
+                  <Search className="mr-2 h-4 w-4" />
+                  검색
+                </Button>
+                <Button variant="outline" onClick={handleClearFilters}>
+                  초기화
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-4">
           {loading ? (

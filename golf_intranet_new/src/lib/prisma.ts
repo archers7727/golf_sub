@@ -18,3 +18,10 @@ export const prisma =
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+/**
+ * NOTE: If you encounter "prepared statement already exists" errors on Vercel:
+ * 1. Ensure DATABASE_URL uses Supabase connection pooler (port 6543)
+ * 2. Add ?pgbouncer=true to DATABASE_URL
+ * 3. Example: postgresql://user:pass@host:6543/db?pgbouncer=true
+ */
