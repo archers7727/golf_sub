@@ -20,9 +20,14 @@ function TextViewPage({ profile }: any) {
   const { courseTimes, loading, fetchCourseTimes } = useCourseTimeStore()
 
   useEffect(() => {
+    // 과거 7일 ~ 미래 30일 범위로 조회
+    const today = new Date()
+    const startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+
     fetchCourseTimes({
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -126,7 +131,15 @@ function TextViewPage({ profile }: any) {
           <Button
             size="lg"
             className="rounded-full w-14 h-14 shadow-lg"
-            onClick={() => fetchCourseTimes()}
+            onClick={() => {
+              const today = new Date()
+              const startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+              const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+              fetchCourseTimes({
+                startDate: startDate.toISOString().split('T')[0],
+                endDate: endDate.toISOString().split('T')[0],
+              })
+            }}
           >
             <RefreshCw className="h-5 w-5" />
           </Button>
