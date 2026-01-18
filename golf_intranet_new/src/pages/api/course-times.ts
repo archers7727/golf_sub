@@ -107,18 +107,51 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       return res.status(200).json(transformed)
     }
 
-    // TEMPORARY: Most minimal query possible to debug "prepared statement" error
-    // TODO: Re-add filters once basic query works
-    console.log('[COURSE-TIMES GET] Fetching all records (minimal query)...')
+    // Build where clause for list query
+    const where: any = {}
 
-    // Get list - NO WHERE, NO ORDER BY, NO INCLUDES
+    if (startDate && typeof startDate === 'string') {
+      where.reservedTime = { ...where.reservedTime, gte: new Date(startDate) }
+    }
+    if (endDate && typeof endDate === 'string') {
+      where.reservedTime = { ...where.reservedTime, lte: new Date(endDate) }
+    }
+    if (status && typeof status === 'string') {
+      where.status = status
+    }
+
+    // Get list with filters and relations
     const courseTimes = await prisma.courseTime.findMany({
-      take: 50, // Small limit for safety
+      where,
+      include: {
+        course: {
+          select: {
+            id: true,
+            golfClubName: true,
+            courseName: true,
+            region: true,
+          },
+        },
+        siteIdRel: {
+          select: {
+            id: true,
+            siteId: true,
+            name: true,
+          },
+        },
+        author: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        reservedTime: 'desc',
+      },
     })
 
-    console.log('[COURSE-TIMES GET] Found', courseTimes.length, 'records')
-
-    // Simple transform - no relations
+    // Transform to match frontend expectations (snake_case)
     const transformed = courseTimes.map((ct) => ({
       id: ct.id,
       author_id: ct.authorId,
@@ -137,10 +170,18 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       join_num: ct.joinNum,
       created_at: ct.createdAt,
       updated_at: ct.updatedAt,
-      // No relations for now
-      courses: null,
-      site_ids: null,
-      users: null,
+      courses: ct.course ? {
+        id: ct.course.id,
+        golf_club_name: ct.course.golfClubName,
+        course_name: ct.course.courseName,
+        region: ct.course.region,
+      } : null,
+      site_ids: ct.siteIdRel ? {
+        id: ct.siteIdRel.id,
+        site_id: ct.siteIdRel.siteId,
+        name: ct.siteIdRel.name,
+      } : null,
+      users: ct.author,
     }))
 
     return res.status(200).json(transformed)
