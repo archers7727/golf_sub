@@ -147,7 +147,7 @@ model CourseTime {
   reservedName String            @map("reserved_name")
   greenFee     Int               @default(0) @map("green_fee")
   chargeFee    Int               @default(0) @map("charge_fee")
-  requirements RequirementsType  @default(NONE)
+  requirements String            @default("조건없음")
   flag         Int               @default(0)
   memo         String?
   status       CourseTimeStatus  @default(AVAILABLE)
