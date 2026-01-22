@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useRouter } from 'next/router'
-import { useCourseTimeStore } from '@/lib/stores/course-time-store'
+import { useCourseTimesQuery } from '@/lib/hooks/useCourseTimesQuery'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, Plus, Clock, DollarSign, FastForward } from 'lucide-react'
@@ -9,28 +9,30 @@ import { ko } from 'date-fns/locale'
 import Link from 'next/link'
 import { withAuth } from '@/lib/hooks/useRequireAuth'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import { useQueryClient } from '@tanstack/react-query'
 
 // Flag 비트마스크
 const FLAG_URGENT = 1  // 임박
 const FLAG_COST = 2    // 원가
 const FLAG_JOIN = 4    // 조인
 
+// 날짜 범위 계산 함수
+function getDateRange() {
+  const today = new Date()
+  const startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+  return {
+    startDate: startDate.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0],
+  }
+}
+
 function TextViewPage({ profile }: any) {
   const router = useRouter()
-  const { courseTimes, loading, fetchCourseTimes } = useCourseTimeStore()
+  const queryClient = useQueryClient()
+  const dateRange = useMemo(() => getDateRange(), [])
 
-  useEffect(() => {
-    // 과거 7일 ~ 미래 30일 범위로 조회
-    const today = new Date()
-    const startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
-
-    fetchCourseTimes({
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const { data: courseTimes = [], isLoading: loading } = useCourseTimesQuery(dateRange)
 
   // 날짜별 그룹핑
   const groupedTimes = useMemo(() => {
@@ -42,6 +44,10 @@ function TextViewPage({ profile }: any) {
     })
     return groups
   }, [courseTimes])
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['courseTimes'] })
+  }
 
   return (
     <DashboardLayout profile={profile}>
@@ -131,15 +137,7 @@ function TextViewPage({ profile }: any) {
           <Button
             size="lg"
             className="rounded-full w-14 h-14 shadow-lg"
-            onClick={() => {
-              const today = new Date()
-              const startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-              const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
-              fetchCourseTimes({
-                startDate: startDate.toISOString().split('T')[0],
-                endDate: endDate.toISOString().split('T')[0],
-              })
-            }}
+            onClick={handleRefresh}
           >
             <RefreshCw className="h-5 w-5" />
           </Button>

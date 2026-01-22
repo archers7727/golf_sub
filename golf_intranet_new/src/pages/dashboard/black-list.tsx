@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useBlackListStore } from '@/lib/stores/black-list-store'
+import { useState } from 'react'
+import { useBlackListsQuery, useCreateBlackListMutation, useDeleteBlackListMutation } from '@/lib/hooks/useBlackListsQuery'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,9 +29,6 @@ import { withAuth } from '@/lib/hooks/useRequireAuth'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 
 function BlackListPage({ user, profile }: any) {
-  const { blackLists, loading, fetchBlackLists, createBlackList, deleteBlackList } =
-    useBlackListStore()
-
   const [searchTerm, setSearchTerm] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -39,15 +36,11 @@ function BlackListPage({ user, profile }: any) {
     phone_number: '',
     reason: '',
   })
-  const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    fetchBlackLists()
-  }, [fetchBlackLists])
-
-  const handleSearch = () => {
-    fetchBlackLists(searchTerm)
-  }
+  // React Query hooks
+  const { data: blackLists = [], isLoading: loading } = useBlackListsQuery(searchTerm)
+  const createMutation = useCreateBlackListMutation()
+  const deleteMutation = useDeleteBlackListMutation()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,36 +51,39 @@ function BlackListPage({ user, profile }: any) {
       return
     }
 
-    setSubmitting(true)
-    try {
-      await createBlackList({
+    createMutation.mutate(
+      {
         author_id: user.id,
         name: formData.name,
         phone_number: formData.phone_number,
         reason: formData.reason,
-      })
-
-      toast.success('블랙리스트에 추가되었습니다')
-      setDialogOpen(false)
-      setFormData({ name: '', phone_number: '', reason: '' })
-    } catch (error) {
-      console.error('Error creating blacklist:', error)
-      toast.error('추가에 실패했습니다')
-    } finally {
-      setSubmitting(false)
-    }
+      },
+      {
+        onSuccess: () => {
+          toast.success('블랙리스트에 추가되었습니다')
+          setDialogOpen(false)
+          setFormData({ name: '', phone_number: '', reason: '' })
+        },
+        onError: (error) => {
+          console.error('Error creating blacklist:', error)
+          toast.error('추가에 실패했습니다')
+        },
+      }
+    )
   }
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`${name}님을 블랙리스트에서 삭제하시겠습니까?`)) return
 
-    try {
-      await deleteBlackList(id)
-      toast.success('블랙리스트에서 삭제되었습니다')
-    } catch (error) {
-      console.error('Error deleting blacklist:', error)
-      toast.error('삭제에 실패했습니다')
-    }
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success('블랙리스트에서 삭제되었습니다')
+      },
+      onError: (error) => {
+        console.error('Error deleting blacklist:', error)
+        toast.error('삭제에 실패했습니다')
+      },
+    })
   }
 
   return (
@@ -162,8 +158,8 @@ function BlackListPage({ user, profile }: any) {
                   >
                     취소
                   </Button>
-                  <Button type="submit" disabled={submitting}>
-                    {submitting ? '추가 중...' : '추가'}
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? '추가 중...' : '추가'}
                   </Button>
                 </DialogFooter>
               </form>
@@ -185,13 +181,8 @@ function BlackListPage({ user, profile }: any) {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="검색어를 입력하세요"
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </div>
-              <Button onClick={handleSearch}>
-                <Search className="mr-2 h-4 w-4" />
-                검색
-              </Button>
             </div>
           </CardContent>
         </Card>

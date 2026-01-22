@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import { useCourseTimeStore } from '@/lib/stores/course-time-store'
-import { useJoinPersonStore } from '@/lib/stores/join-person-store'
+import { useCourseTimeQuery, useUpdateCourseTimeMutation, useDeleteCourseTimeMutation } from '@/lib/hooks/useCourseTimesQuery'
+import { useJoinPersonsQuery, useCreateJoinPersonMutation, useDeleteJoinPersonMutation } from '@/lib/hooks/useJoinPersonsQuery'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,11 +18,15 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout'
 function ReservationDetailPage({ user, profile }: any) {
   const router = useRouter()
   const { id: timeId } = router.query
-  const { deleteCourseTime, updateCourseTime } = useCourseTimeStore()
-  const { joinPersons, fetchJoinPersons, createJoinPerson, deleteJoinPerson } = useJoinPersonStore()
 
-  const [time, setTime] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  // React Query hooks
+  const { data: time, isLoading: loading } = useCourseTimeQuery(timeId as string | undefined)
+  const { data: joinPersons = [] } = useJoinPersonsQuery(timeId as string | undefined)
+  const updateCourseTimeMutation = useUpdateCourseTimeMutation()
+  const deleteCourseTimeMutation = useDeleteCourseTimeMutation()
+  const createJoinPersonMutation = useCreateJoinPersonMutation()
+  const deleteJoinPersonMutation = useDeleteJoinPersonMutation()
+
   const [joinForm, setJoinForm] = useState({
     name: '',
     phone_number: '',
@@ -31,48 +35,12 @@ function ReservationDetailPage({ user, profile }: any) {
   })
   const [greenFeeInput, setGreenFeeInput] = useState('')
 
-  // Fetch single course time by ID (faster than fetching all)
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!timeId) return
-      setLoading(true)
-      try {
-        const response = await fetch(`/api/course-times?id=${timeId}`)
-        if (response.ok) {
-          const data = await response.json()
-          setTime(data)
-        }
-        await fetchJoinPersons(timeId as string)
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeId])
-
   useEffect(() => {
     if (time) {
       setJoinForm((prev) => ({ ...prev, green_fee: time.green_fee }))
       setGreenFeeInput(time.green_fee.toLocaleString())
     }
   }, [time])
-
-  // Refetch single course time data
-  const refetchTime = async () => {
-    if (!timeId) return
-    try {
-      const response = await fetch(`/api/course-times?id=${timeId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setTime(data)
-      }
-    } catch (error) {
-      console.error('Error refetching time:', error)
-    }
-  }
 
   // 조인 타입별 인원 계산
   const getJoinCount = (joinType: string): number => {
@@ -122,8 +90,8 @@ function ReservationDetailPage({ user, profile }: any) {
       return
     }
 
-    try {
-      await createJoinPerson({
+    createJoinPersonMutation.mutate(
+      {
         manager_id: user.id,
         time_id: timeId as string,
         name: joinForm.name,
@@ -132,33 +100,36 @@ function ReservationDetailPage({ user, profile }: any) {
         join_num: 1,
         green_fee: joinForm.green_fee,
         charge_fee: time?.charge_fee || 0,
-      })
+      },
+      {
+        onSuccess: () => {
+          // 새로운 총 인원 계산
+          const newTotal = currentTotal + newJoinCount
 
-      // 새로운 총 인원 계산
-      const newTotal = currentTotal + newJoinCount
+          // 코스 타임의 join_num 및 status 업데이트
+          if (time) {
+            let newStatus = time.status
+            if (newTotal >= 4) {
+              newStatus = '판매완료'
+            } else {
+              newStatus = '미판매'
+            }
 
-      // 코스 타임의 join_num 및 status 업데이트
-      if (time) {
-        let newStatus = time.status
-        if (newTotal >= 4) {
-          newStatus = '판매완료'
-        } else {
-          newStatus = '미판매'
-        }
+            updateCourseTimeMutation.mutate({
+              id: timeId as string,
+              data: { join_num: newTotal, status: newStatus },
+            })
+          }
 
-        await updateCourseTime(timeId as string, {
-          join_num: newTotal,
-          status: newStatus,
-        })
+          toast.success('조인 추가 완료')
+          setJoinForm({ name: '', phone_number: '', join_type: '남', green_fee: time?.green_fee || 0 })
+          setGreenFeeInput((time?.green_fee || 0).toLocaleString())
+        },
+        onError: (error: any) => {
+          toast.error('조인 추가 실패', { description: error.message })
+        },
       }
-
-      toast.success('조인 추가 완료')
-      setJoinForm({ name: '', phone_number: '', join_type: '남', green_fee: time?.green_fee || 0 })
-      setGreenFeeInput((time?.green_fee || 0).toLocaleString())
-      refetchTime()
-    } catch (error: any) {
-      toast.error('조인 추가 실패', { description: error.message })
-    }
+    )
   }
 
   const handleRemoveJoin = async (joinId: string) => {
@@ -171,32 +142,32 @@ function ReservationDetailPage({ user, profile }: any) {
     const deleteJoinCount = getJoinCount(joinToDelete.join_type)
     const currentTotal = getTotalJoinCount()
 
-    try {
-      await deleteJoinPerson(joinId)
+    deleteJoinPersonMutation.mutate(joinId, {
+      onSuccess: () => {
+        // 새로운 총 인원 계산
+        const newTotal = Math.max(0, currentTotal - deleteJoinCount)
 
-      // 새로운 총 인원 계산
-      const newTotal = Math.max(0, currentTotal - deleteJoinCount)
+        // 코스 타임의 join_num 및 status 업데이트
+        if (time && timeId) {
+          let newStatus = time.status
+          if (newTotal >= 4) {
+            newStatus = '판매완료'
+          } else {
+            newStatus = '미판매'
+          }
 
-      // 코스 타임의 join_num 및 status 업데이트
-      if (time && timeId) {
-        let newStatus = time.status
-        if (newTotal >= 4) {
-          newStatus = '판매완료'
-        } else {
-          newStatus = '미판매'
+          updateCourseTimeMutation.mutate({
+            id: timeId as string,
+            data: { join_num: newTotal, status: newStatus },
+          })
         }
 
-        await updateCourseTime(timeId as string, {
-          join_num: newTotal,
-          status: newStatus,
-        })
-      }
-
-      toast.success('조인 취소 완료')
-      refetchTime()
-    } catch (error: any) {
-      toast.error('조인 취소 실패', { description: error.message })
-    }
+        toast.success('조인 취소 완료')
+      },
+      onError: (error: any) => {
+        toast.error('조인 취소 실패', { description: error.message })
+      },
+    })
   }
 
   const handleCopyPhone = (phoneNumber: string) => {
@@ -210,27 +181,33 @@ function ReservationDetailPage({ user, profile }: any) {
     if (!confirm('타임을 삭제하시겠습니까?')) return
     if (!timeId) return
 
-    try {
-      await deleteCourseTime(timeId as string)
-      toast.success('타임 삭제 완료')
-      router.push('/dashboard/course-time')
-    } catch (error: any) {
-      toast.error('삭제 실패', { description: error.message })
-    }
+    deleteCourseTimeMutation.mutate(timeId as string, {
+      onSuccess: () => {
+        toast.success('타임 삭제 완료')
+        router.push('/dashboard/course-time')
+      },
+      onError: (error: any) => {
+        toast.error('삭제 실패', { description: error.message })
+      },
+    })
   }
 
   const handleChangeStatus = async (newStatus: '판매완료' | '미판매' | '타업체마감') => {
     if (!timeId) return
 
-    try {
-      await updateCourseTime(timeId as string, { status: newStatus })
-      toast.success('상태 변경 완료', {
-        description: `${newStatus}로 변경되었습니다.`,
-      })
-      refetchTime()
-    } catch (error: any) {
-      toast.error('상태 변경 실패', { description: error.message })
-    }
+    updateCourseTimeMutation.mutate(
+      { id: timeId as string, data: { status: newStatus } },
+      {
+        onSuccess: () => {
+          toast.success('상태 변경 완료', {
+            description: `${newStatus}로 변경되었습니다.`,
+          })
+        },
+        onError: (error: any) => {
+          toast.error('상태 변경 실패', { description: error.message })
+        },
+      }
+    )
   }
 
   if (loading) {

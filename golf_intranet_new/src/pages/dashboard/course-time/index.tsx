@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/router'
-import { useCourseTimeStore } from '@/lib/stores/course-time-store'
+import { useCourseTimesQuery, useDeleteCourseTimeMutation, type CourseTimeFilters } from '@/lib/hooks/useCourseTimesQuery'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -34,31 +34,22 @@ const FLAG_JOIN = 4    // 조인
 
 function CourseTimePage({ profile }: any) {
   const router = useRouter()
-  const { courseTimes, loading, error, fetchCourseTimes, deleteCourseTime } = useCourseTimeStore()
 
   // Filter states
+  const [filters, setFilters] = useState<CourseTimeFilters>({})
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilters, setShowFilters] = useState(false)
 
-  useEffect(() => {
-    // Load all times (no date filter by default)
-    fetchCourseTimes({})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    if (error) {
-      toast.error('데이터 로딩 실패', { description: error })
-    }
-  }, [error])
+  // React Query hooks
+  const { data: courseTimes = [], isLoading: loading, error } = useCourseTimesQuery(filters)
+  const deleteMutation = useDeleteCourseTimeMutation()
 
   const handleApplyFilters = () => {
-    fetchCourseTimes({
+    setFilters({
       startDate: startDate || undefined,
       endDate: endDate || undefined,
-      // search: searchQuery || undefined, // Disabled temporarily
     })
   }
 
@@ -66,22 +57,24 @@ function CourseTimePage({ profile }: any) {
     setStartDate('')
     setEndDate('')
     setSearchQuery('')
-    fetchCourseTimes({})
+    setFilters({})
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('정말 삭제하시겠습니까?')) return
 
-    try {
-      await deleteCourseTime(id)
-      toast.success('삭제 완료', {
-        description: '타임이 성공적으로 삭제되었습니다.',
-      })
-    } catch (error: any) {
-      toast.error('삭제 실패', {
-        description: error.message,
-      })
-    }
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success('삭제 완료', {
+          description: '타임이 성공적으로 삭제되었습니다.',
+        })
+      },
+      onError: (error: any) => {
+        toast.error('삭제 실패', {
+          description: error.message,
+        })
+      },
+    })
   }
 
   const getStatusVariant = (
