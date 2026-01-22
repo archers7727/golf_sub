@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/router'
-import { useCourseTimesQuery, useDeleteCourseTimeMutation, type CourseTimeFilters } from '@/lib/hooks/useCourseTimesQuery'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCourseTimesQuery, useDeleteCourseTimeMutation, courseTimeKeys, type CourseTimeFilters } from '@/lib/hooks/useCourseTimesQuery'
+import { joinPersonKeys } from '@/lib/hooks/useJoinPersonsQuery'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -34,6 +36,7 @@ const FLAG_JOIN = 4    // 조인
 
 function CourseTimePage({ profile }: any) {
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   // Filter states
   const [filters, setFilters] = useState<CourseTimeFilters>({})
@@ -45,6 +48,20 @@ function CourseTimePage({ profile }: any) {
   // React Query hooks
   const { data: courseTimes = [], isLoading: loading, error } = useCourseTimesQuery(filters)
   const deleteMutation = useDeleteCourseTimeMutation()
+
+  // 마우스 호버 시 예약 상세 데이터 미리 가져오기
+  const prefetchReservation = useCallback((timeId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: courseTimeKeys.detail(timeId),
+      queryFn: () => fetch(`/api/course-times?id=${timeId}`).then(res => res.json()),
+      staleTime: 5 * 60 * 1000,
+    })
+    queryClient.prefetchQuery({
+      queryKey: joinPersonKeys.list(timeId),
+      queryFn: () => fetch(`/api/join-persons?timeId=${timeId}`).then(res => res.json()),
+      staleTime: 5 * 60 * 1000,
+    })
+  }, [queryClient])
 
   const handleApplyFilters = () => {
     setFilters({
@@ -222,10 +239,11 @@ function CourseTimePage({ profile }: any) {
                           {time.users?.name || '-'}
                         </TableCell>
 
-                        {/* 골프장 - clickable */}
+                        {/* 골프장 - clickable with prefetch on hover */}
                         <TableCell>
                           <button
                             onClick={() => router.push(`/dashboard/reservation/${time.id}`)}
+                            onMouseEnter={() => prefetchReservation(time.id)}
                             className="text-blue-600 hover:underline text-left"
                           >
                             {time.courses?.golf_club_name || '-'}

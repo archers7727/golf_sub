@@ -19,9 +19,12 @@ function ReservationDetailPage({ user, profile }: any) {
   const router = useRouter()
   const { id: timeId } = router.query
 
-  // React Query hooks
-  const { data: time, isLoading: loading } = useCourseTimeQuery(timeId as string | undefined)
-  const { data: joinPersons = [] } = useJoinPersonsQuery(timeId as string | undefined)
+  // router.isReady가 true일 때만 ID 사용 (hydration 이슈 방지)
+  const stableTimeId = router.isReady ? (timeId as string) : undefined
+
+  // React Query hooks - stableTimeId 사용으로 불필요한 재요청 방지
+  const { data: time, isLoading: loading } = useCourseTimeQuery(stableTimeId)
+  const { data: joinPersons = [] } = useJoinPersonsQuery(stableTimeId)
   const updateCourseTimeMutation = useUpdateCourseTimeMutation()
   const deleteCourseTimeMutation = useDeleteCourseTimeMutation()
   const createJoinPersonMutation = useCreateJoinPersonMutation()

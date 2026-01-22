@@ -1,12 +1,12 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import { useRouter } from 'next/router'
-import { useCourseTimesQuery } from '@/lib/hooks/useCourseTimesQuery'
+import { useCourseTimesQuery, courseTimeKeys } from '@/lib/hooks/useCourseTimesQuery'
+import { joinPersonKeys } from '@/lib/hooks/useJoinPersonsQuery'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, Plus, Clock, DollarSign, FastForward } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import Link from 'next/link'
 import { withAuth } from '@/lib/hooks/useRequireAuth'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { useQueryClient } from '@tanstack/react-query'
@@ -49,6 +49,20 @@ function TextViewPage({ profile }: any) {
     queryClient.invalidateQueries({ queryKey: ['courseTimes'] })
   }
 
+  // 터치/호버 시 예약 상세 데이터 미리 가져오기
+  const prefetchReservation = useCallback((timeId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: courseTimeKeys.detail(timeId),
+      queryFn: () => fetch(`/api/course-times?id=${timeId}`).then(res => res.json()),
+      staleTime: 5 * 60 * 1000,
+    })
+    queryClient.prefetchQuery({
+      queryKey: joinPersonKeys.list(timeId),
+      queryFn: () => fetch(`/api/join-persons?timeId=${timeId}`).then(res => res.json()),
+      staleTime: 5 * 60 * 1000,
+    })
+  }, [queryClient])
+
   return (
     <DashboardLayout profile={profile}>
       <div className="min-h-screen bg-white p-2 pb-24">
@@ -75,10 +89,12 @@ function TextViewPage({ profile }: any) {
                 </h3>
                 <div className="space-y-1">
                   {times.map((time) => (
-                    <Link
+                    <div
                       key={time.id}
-                      href={`/dashboard/reservation/${time.id}`}
-                      className="block text-sm p-2 hover:bg-slate-50 rounded transition-colors active:bg-slate-100"
+                      onClick={() => router.push(`/dashboard/reservation/${time.id}`)}
+                      onMouseEnter={() => prefetchReservation(time.id)}
+                      onTouchStart={() => prefetchReservation(time.id)}
+                      className="block text-sm p-2 hover:bg-slate-50 rounded transition-colors active:bg-slate-100 cursor-pointer"
                     >
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* Flag badges */}
@@ -124,7 +140,7 @@ function TextViewPage({ profile }: any) {
                       {time.memo && (
                         <div className="text-xs text-muted-foreground mt-1">{time.memo}</div>
                       )}
-                    </Link>
+                    </div>
                   ))}
                 </div>
               </div>
